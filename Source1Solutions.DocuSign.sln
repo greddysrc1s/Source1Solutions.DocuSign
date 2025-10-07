@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35828.75
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source1Solutions.DocuSign", "Source1Solutions.DocuSign\Source1Solutions.DocuSign.csproj", "{3887C251-3F73-48A8-BD70-658993B3F2BC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source1Solutions.DocuSign.WinForms", "Source1Solutions.DocuSign.WinForms\Source1Solutions.DocuSign.WinForms.csproj", "{46609A8B-D1EF-461F-AA16-E38800B91C1B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3887C251-3F73-48A8-BD70-658993B3F2BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3887C251-3F73-48A8-BD70-658993B3F2BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3887C251-3F73-48A8-BD70-658993B3F2BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3887C251-3F73-48A8-BD70-658993B3F2BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{46609A8B-D1EF-461F-AA16-E38800B91C1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{46609A8B-D1EF-461F-AA16-E38800B91C1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{46609A8B-D1EF-461F-AA16-E38800B91C1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{46609A8B-D1EF-461F-AA16-E38800B91C1B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {394EF07C-2656-4F60-9123-AA7478DC4E0D}
+	EndGlobalSection
+EndGlobal
