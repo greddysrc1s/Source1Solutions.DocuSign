@@ -2,13 +2,13 @@ using Microsoft.Data.SqlClient;
 using System.Data;
 using System.IO;
 using System.Runtime.InteropServices;
-using Source1Solutions.DocuSign.WinForms.Models;
+using DocuSign.Requests;
 
 namespace Source1Solutions.DocuSign.WinForms
 {
     public partial class DocuSignForm : Form
     {
-        string connectionString = "Server=WAP-sql.viewpointdata.cloud,4316;Database=Viewpoint;User Id=ReportBuilder;Password=SourceOne@20230816;";
+        string connectionString = AppSettings.GetConnectionString();
         string _argsString;
         Dictionary<string, string> dicArgs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -162,7 +162,6 @@ namespace Source1Solutions.DocuSign.WinForms
                     dateColumn.DefaultCellStyle.Format = "MM/dd/yyyy";
                     dgvAttachments.Columns.Add(dateColumn);
 
-
                     while (reader.Read())
                     {
                         // Add row with data from reader, formatting date
@@ -186,13 +185,13 @@ namespace Source1Solutions.DocuSign.WinForms
         {
             // Validate all signer fields
             List<string> validationErrors = new List<string>();
-            
+
             for (int i = 0; i < signerEmailTextBoxes.Count; i++)
             {
                 TextBox emailTextBox = signerEmailTextBoxes[i];
                 TextBox nameTextBox = signerNameTextBoxes[i];
                 int signerNumber = i + 1;
-                
+
                 // Check if email is empty or invalid
                 string email = emailTextBox.Text.Trim();
                 if (string.IsNullOrEmpty(email))
@@ -203,7 +202,7 @@ namespace Source1Solutions.DocuSign.WinForms
                 {
                     validationErrors.Add($"Signer {signerNumber} email is not valid");
                 }
-                
+
                 // Check if name is empty
                 string name = nameTextBox.Text.Trim();
                 if (string.IsNullOrEmpty(name))
@@ -211,7 +210,7 @@ namespace Source1Solutions.DocuSign.WinForms
                     validationErrors.Add($"Signer {signerNumber} name is empty");
                 }
             }
-            
+
             // Check if any attachments are selected
             bool hasSelectedAttachments = false;
             foreach (DataGridViewRow row in dgvAttachments.Rows)
@@ -222,12 +221,12 @@ namespace Source1Solutions.DocuSign.WinForms
                     break;
                 }
             }
-            
+
             if (!hasSelectedAttachments)
             {
                 validationErrors.Add("Please select at least one attachment to send");
             }
-            
+
             // If there are validation errors, show message box and return
             if (validationErrors.Count > 0)
             {
@@ -235,27 +234,102 @@ namespace Source1Solutions.DocuSign.WinForms
                 MessageBox.Show(errorMessage, "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            
+
             // Create DTO object with validated data
             DocuSignRequestDto docuSignRequest = CreateDocuSignRequestDto();
-            
-            // Show success message with summary
-            string summary = $"DocuSign Request Created Successfully!\n\n" +
-                           $"Request ID: {docuSignRequest.RequestId}\n" +
-                           $"Signers: {docuSignRequest.Signers.Count}\n" +
-                           $"Selected Attachments: {docuSignRequest.SelectedAttachments.Count}\n" +
-                           $"Request Time: {docuSignRequest.RequestDateTime:MM/dd/yyyy HH:mm:ss}";
-            
-            MessageBox.Show(summary, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            
-            // TODO: Send docuSignRequest to DocuSign API
-            // ProcessDocuSignRequest(docuSignRequest);
+
+            try
+            {
+                var userInputs = new UserInputs() 
+                    { ConnectionString = AppSettings.GetConnectionString(),
+                        DocuSignClientId = AppSettings.GetDocuSignClientId(),
+                        DocuSignAuthServer = AppSettings.GetDocuSignAuthServer(),
+                        DocuSignImpersonatedUserID = AppSettings.GetDocuSignImpersonatedUserID(),
+                        DocuSignPrivateKeyFile = AppSettings.GetDocuSignPrivateKeyFile(),
+                        DocuSignAccountID = AppSettings.DocuSignAccountID(),
+                        AttachmentDBConnection = AppSettings.GetAttachmentDBConnectionString()
+                };
+
+                // Save to database using stored procedure
+                int docuSignId = SaveDocuSignEntries(docuSignRequest);
+
+                // Show success message with summary
+                string summary = $"DocuSign Request Saved Successfully!\n\n" +
+                               $"Database ID: {docuSignId}\n" +
+                               $"Request ID: {docuSignRequest.RequestId}\n" +
+                               $"Signers: {docuSignRequest.Signers.Count}\n" +
+                               $"Selected Attachments: {docuSignRequest.SelectedAttachments.Count}\n" +
+                               $"Request Time: {docuSignRequest.RequestDateTime:MM/dd/yyyy HH:mm:ss}";
+
+                MessageBox.Show(summary, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // TODO: Send docuSignRequest to DocuSign API
+                // ProcessDocuSignRequest(docuSignRequest);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error saving DocuSign request: {ex.Message}", "Database Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
-        
+
+        private int SaveDocuSignEntries(DocuSignRequestDto docuSignRequest)
+        {
+            // Prepare comma-delimited strings for signers
+            string signerEmails = string.Join(",", docuSignRequest.Signers.Select(s => s.Email));
+            string signerNames = string.Join(",", docuSignRequest.Signers.Select(s => s.Name));
+
+            // Prepare comma-delimited strings for attachments
+            string attachmentIds = string.Join(",", docuSignRequest.SelectedAttachments.Select(a => a.AttachmentID));
+            string attachmentNames = string.Join(",", docuSignRequest.SelectedAttachments.Select(a => a.OrigFileName));
+
+            // Get requestor from args or use a default
+            string requestor = docuSignRequest.RequestId;
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlCommand command = new SqlCommand("brptCreateDocuSignEntries_S1S", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+
+                // Add parameters
+                command.Parameters.AddWithValue("@Requestor", requestor);
+                command.Parameters.AddWithValue("@EnvelopeID", DBNull.Value); // Will be updated after DocuSign API call
+                command.Parameters.AddWithValue("@Status", "Pending");
+                command.Parameters.AddWithValue("@RequestFrom", docuSignRequest.RequestFrom);
+                command.Parameters.AddWithValue("@Key_1", docuSignRequest.Key_1);
+                command.Parameters.AddWithValue("@Key_2", docuSignRequest.Key_2);
+                command.Parameters.AddWithValue("@Error_Msg", DBNull.Value);
+                command.Parameters.AddWithValue("@SignerEmails", signerEmails);
+                command.Parameters.AddWithValue("@SignerNames", signerNames);
+                command.Parameters.AddWithValue("@AttachmentIDs", attachmentIds);
+                command.Parameters.AddWithValue("@AttachmentNames", attachmentNames);
+
+                connection.Open();
+
+                // Execute and get the returned DocuSignID
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return Convert.ToInt32(reader["DocuSignID"]);
+                    }
+                    else
+                    {
+                        throw new Exception("Failed to retrieve DocuSignID from stored procedure");
+                    }
+                }
+            }
+        }
+
         private DocuSignRequestDto CreateDocuSignRequestDto()
         {
             var docuSignRequest = new DocuSignRequestDto();
-            
+
+            docuSignRequest.RequestId = dicArgs.ContainsKey("requestor") ? dicArgs["requestor"] : Environment.UserName;
+            docuSignRequest.RequestFrom = dicArgs.ContainsKey("component") ? dicArgs["component"] : Environment.UserName;
+            docuSignRequest.Key_1 = dicArgs.ContainsKey("companyID") ? dicArgs["companyID"] : Environment.UserName;
+            docuSignRequest.Key_2 = dicArgs.ContainsKey("contractID") ? dicArgs["contractID"] : Environment.UserName;
+
             // Add signers
             for (int i = 0; i < signerEmailTextBoxes.Count; i++)
             {
@@ -267,7 +341,7 @@ namespace Source1Solutions.DocuSign.WinForms
                 };
                 docuSignRequest.Signers.Add(signer);
             }
-            
+
             // Add selected attachments
             foreach (DataGridViewRow row in dgvAttachments.Rows)
             {
@@ -285,10 +359,10 @@ namespace Source1Solutions.DocuSign.WinForms
                     docuSignRequest.SelectedAttachments.Add(attachment);
                 }
             }
-            
+
             return docuSignRequest;
         }
-        
+
         private bool IsValidEmail(string email)
         {
             try
@@ -300,6 +374,11 @@ namespace Source1Solutions.DocuSign.WinForms
             {
                 return false;
             }
+        }
+
+        private void btnExit_Click(object sender, EventArgs e)
+        {
+            this.Close();
         }
     }
 }

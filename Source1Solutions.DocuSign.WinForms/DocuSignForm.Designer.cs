@@ -124,6 +124,7 @@ namespace Source1Solutions.DocuSign.WinForms
             btnExit.TabIndex = 10;
             btnExit.Text = "Exit Application";
             btnExit.UseVisualStyleBackColor = true;
+            btnExit.Click += btnExit_Click;
             // 
             // DocuSignForm
             // 

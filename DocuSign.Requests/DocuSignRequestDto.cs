@@ -1,7 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace Source1Solutions.DocuSign.WinForms.Models
+namespace DocuSign.Requests
 {
     public class DocuSignRequestDto
     {
@@ -9,6 +12,12 @@ namespace Source1Solutions.DocuSign.WinForms.Models
         public List<AttachmentDto> SelectedAttachments { get; set; } = new List<AttachmentDto>();
         public DateTime RequestDateTime { get; set; } = DateTime.Now;
         public string RequestId { get; set; } = Guid.NewGuid().ToString();
+
+        public string RequestFrom { get; set; } = string.Empty;
+
+        public string Key_1 { get; set; } = string.Empty;
+
+        public string Key_2 { get; set; } = string.Empty;
     }
 
     public class SignerDto

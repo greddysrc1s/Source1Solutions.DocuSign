@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source1Solutions.DocuSign",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source1Solutions.DocuSign.WinForms", "Source1Solutions.DocuSign.WinForms\Source1Solutions.DocuSign.WinForms.csproj", "{46609A8B-D1EF-461F-AA16-E38800B91C1B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocuSign.Requests", "DocuSign.Requests\DocuSign.Requests.csproj", "{34A27B25-27FC-4DC4-BA44-4631970D11E7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{46609A8B-D1EF-461F-AA16-E38800B91C1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{46609A8B-D1EF-461F-AA16-E38800B91C1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{46609A8B-D1EF-461F-AA16-E38800B91C1B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{34A27B25-27FC-4DC4-BA44-4631970D11E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{34A27B25-27FC-4DC4-BA44-4631970D11E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{34A27B25-27FC-4DC4-BA44-4631970D11E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{34A27B25-27FC-4DC4-BA44-4631970D11E7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
