@@ -240,18 +240,22 @@ namespace Source1Solutions.DocuSign.WinForms
 
             try
             {
-                var userInputs = new UserInputs() 
-                    { ConnectionString = AppSettings.GetConnectionString(),
-                        DocuSignClientId = AppSettings.GetDocuSignClientId(),
-                        DocuSignAuthServer = AppSettings.GetDocuSignAuthServer(),
-                        DocuSignImpersonatedUserID = AppSettings.GetDocuSignImpersonatedUserID(),
-                        DocuSignPrivateKeyFile = AppSettings.GetDocuSignPrivateKeyFile(),
-                        DocuSignAccountID = AppSettings.DocuSignAccountID(),
-                        AttachmentDBConnection = AppSettings.GetAttachmentDBConnectionString()
+                var userInputs = new UserInputs()
+                {
+                    ConnectionString = AppSettings.GetConnectionString(),
+                    DocuSignClientId = AppSettings.GetDocuSignClientId(),
+                    DocuSignAuthServer = AppSettings.GetDocuSignAuthServer(),
+                    DocuSignImpersonatedUserID = AppSettings.GetDocuSignImpersonatedUserID(),
+                    DocuSignPrivateKeyFile = AppSettings.GetDocuSignPrivateKeyFile(),
+                    DocuSignAccountID = AppSettings.DocuSignAccountID(),
+                    AttachmentDBConnection = AppSettings.GetAttachmentDBConnectionString()
                 };
 
+                DocuSignRequestor docuSignRequestor = new DocuSignRequestor(userInputs);
+                var envelopeID = docuSignRequestor.SendEnvelope(docuSignRequest);
+
                 // Save to database using stored procedure
-                int docuSignId = SaveDocuSignEntries(docuSignRequest);
+                int docuSignId = SaveDocuSignEntries(docuSignRequest, envelopeID);
 
                 // Show success message with summary
                 string summary = $"DocuSign Request Saved Successfully!\n\n" +
@@ -273,7 +277,7 @@ namespace Source1Solutions.DocuSign.WinForms
             }
         }
 
-        private int SaveDocuSignEntries(DocuSignRequestDto docuSignRequest)
+        private int SaveDocuSignEntries(DocuSignRequestDto docuSignRequest, string envelopeID)
         {
             // Prepare comma-delimited strings for signers
             string signerEmails = string.Join(",", docuSignRequest.Signers.Select(s => s.Email));
@@ -293,7 +297,7 @@ namespace Source1Solutions.DocuSign.WinForms
 
                 // Add parameters
                 command.Parameters.AddWithValue("@Requestor", requestor);
-                command.Parameters.AddWithValue("@EnvelopeID", DBNull.Value); // Will be updated after DocuSign API call
+                command.Parameters.AddWithValue("@EnvelopeID", envelopeID); // Will be updated after DocuSign API call
                 command.Parameters.AddWithValue("@Status", "Pending");
                 command.Parameters.AddWithValue("@RequestFrom", docuSignRequest.RequestFrom);
                 command.Parameters.AddWithValue("@Key_1", docuSignRequest.Key_1);

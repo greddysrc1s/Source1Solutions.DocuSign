@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="DocuSign.eSign.dll" Version="8.4.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1" />
   </ItemGroup>
 
 </Project>

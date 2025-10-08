@@ -106,26 +106,21 @@ namespace DocuSign.Requests
                 });
             }
 
-            string docDocx = Path.Combine(@"..", "..", "..", "..", "launcher-csharp", "World_Wide_Corp_salary.docx");
-            string docPdf = Path.Combine(@"..", "..", "..", "..", "launcher-csharp", "World_Wide_Corp_lorem.pdf");
-            Console.WriteLine("");
-            string envelopeId = SigningViaEmail.SendEnvelopeViaEmail(signerEmail, signerName, "", "", accessToken.access_token, acct.BaseUri + "/restapi", acct.AccountId, docDocx, docPdf, "sent");
-            Console.WriteLine("");
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Successfully sent envelope with envelopeId {envelopeId}");
-            Console.WriteLine("");
-            Console.WriteLine("");
-            Console.ForegroundColor = ConsoleColor.White;
-
+            string envelopeId = SigningViaEmail.SendEnvelopeViaEmail(accessToken.access_token, 
+                                                                    acct.BaseUri + "/restapi", 
+                                                                    acct.AccountId,
+                                                                    docuSignRequest.Signers,
+                                                                    docuSignRequest.SelectedAttachments, 
+                                                                    "sent");
+            
             return envelopeId;
         }
 
-        public static Envelope GetEnvelopeStatus(string accessToken,
-                                        string accountId, string envelopeId)
+        public Envelope GetEnvelopeStatus(string accountId, string envelopeId)
         {
             // Step 1: Initialize DocuSign client
             var apiClient = new ApiClient("https://demo.docusign.net/restapi");
-            apiClient.Configuration.DefaultHeader.Add("Authorization", "Bearer " + accessToken);
+            apiClient.Configuration.DefaultHeader.Add("Authorization", "Bearer " + accessToken.access_token);
 
             // Step 2: Create Envelopes API instance
             var envelopesApi = new EnvelopesApi(apiClient);
@@ -137,12 +132,11 @@ namespace DocuSign.Requests
             return envelope;
         }
 
-        public async static void DownloadCombinedPdf(string accessToken, string accountId,
-                            string envelopeId, string outputFilePath)
+        public string DownloadCombinedPdf(string accountId,string envelopeId, string outputFilePath)
         {
             // Step 1: Initialize API client
             var apiClient = new ApiClient("https://demo.docusign.net/restapi"); // use "https://www.docusign.net/restapi" for production
-            apiClient.Configuration.DefaultHeader.Add("Authorization", "Bearer " + accessToken);
+            apiClient.Configuration.DefaultHeader.Add("Authorization", "Bearer " + accessToken.access_token);
 
             // Step 2: Create EnvelopesApi instance
             var envelopesApi = new EnvelopesApi(apiClient);
@@ -156,7 +150,8 @@ namespace DocuSign.Requests
                 }
             }
 
-            Console.WriteLine($"✅ Combined PDF downloaded successfully to: {outputFilePath}");
+            return outputFilePath;
+
 
             //string baseUrl = $"https://demo.docusign.net/restapi/v2.1/accounts/{accountId}";
             //string documentsCombinedUri = $"/envelopes/{envelopeId}/documents/combined";
