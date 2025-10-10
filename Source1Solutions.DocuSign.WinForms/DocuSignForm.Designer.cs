@@ -39,6 +39,7 @@ namespace Source1Solutions.DocuSign.WinForms
             btnMoreSigners = new Button();
             btnSendDocuments = new Button();
             btnExit = new Button();
+            btnRemoveSigner = new Button();
             ((System.ComponentModel.ISupportInitialize)dgvAttachments).BeginInit();
             SuspendLayout();
             // 
@@ -126,11 +127,21 @@ namespace Source1Solutions.DocuSign.WinForms
             btnExit.UseVisualStyleBackColor = true;
             btnExit.Click += btnExit_Click;
             // 
+            // btnRemoveSigner
+            // 
+            btnRemoveSigner.Location = new Point(1102, 80);
+            btnRemoveSigner.Name = "btnRemoveSigner";
+            btnRemoveSigner.Size = new Size(182, 29);
+            btnRemoveSigner.TabIndex = 11;
+            btnRemoveSigner.Text = "Remove Last Signer";
+            btnRemoveSigner.UseVisualStyleBackColor = true;
+            // 
             // DocuSignForm
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1458, 450);
+            Controls.Add(btnRemoveSigner);
             Controls.Add(btnExit);
             Controls.Add(btnSendDocuments);
             Controls.Add(btnMoreSigners);
@@ -158,5 +169,6 @@ namespace Source1Solutions.DocuSign.WinForms
         private Button btnMoreSigners;
         private Button btnSendDocuments;
         private Button btnExit;
+        private Button btnRemoveSigner;
     }
 }

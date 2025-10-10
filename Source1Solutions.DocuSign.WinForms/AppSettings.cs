@@ -27,7 +27,7 @@ namespace Source1Solutions.DocuSign.WinForms
         {
             return Configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
         }
-
+        
         public static string GetAttachmentDBConnectionString()
         {
             return Configuration.GetConnectionString("AttachmentDBConnection") ?? string.Empty;
@@ -47,15 +47,35 @@ namespace Source1Solutions.DocuSign.WinForms
         {
             return Configuration["DocuSign:ImpersonatedUserID"] ?? string.Empty;
         }
+        
+        public static string GetDocuSignAccountID()
+        {
+            return Configuration["DocuSign:AccountID"] ?? string.Empty;
+        }
 
         public static string GetDocuSignPrivateKeyFile()
         {
             return Configuration["DocuSign:PrivateKeyFile"] ?? string.Empty;
         }
 
-        public static string DocuSignAccountID()
+        public static string GetLogFilePath()
         {
-            return Configuration["DocuSign:AccountID"] ?? string.Empty;
+            return Configuration["Logging:LogFilePath"] ?? "C:\\Logs\\DocuSign\\";
+        }
+
+        public static string GetLogFileName()
+        {
+            return Configuration["Logging:LogFileName"] ?? "DocuSign_{date}.log";
+        }
+
+        public static string GetLogLevel()
+        {
+            return Configuration["Logging:LogLevel"] ?? "Information";
+        }
+
+        public static int GetLogRetentionDays()
+        {
+            return int.TryParse(Configuration["Logging:RetentionDays"], out int days) ? days : 30;
         }
     }
 }

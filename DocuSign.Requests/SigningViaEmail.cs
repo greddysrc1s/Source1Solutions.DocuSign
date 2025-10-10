@@ -1,10 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using DocuSign.eSign.Api;
+﻿using DocuSign.eSign.Api;
 using DocuSign.eSign.Client;
 using DocuSign.eSign.Model;
 using Microsoft.Data.SqlClient;
+using Org.BouncyCastle.Crypto.Signers;
+using System;
+using System.Collections.Generic;
+using System.Text;
 
 namespace DocuSign.Requests
 {
@@ -17,154 +18,235 @@ namespace DocuSign.Requests
                                                     string accountId,
                                                     List<SignerDto> signers,
                                                     List<AttachmentDto> selectedAttachments,
-                                                    string envStatus)
+                                                    string envStatus,
+                                                    Logger logger)
         {
+            Logger _logger = logger;
+
+            _logger.LogMethodEntry("SendEnvelopeViaEmail", basePath, accountId, envStatus);
+            _logger.LogInformation("Sending envelope with {0} signer(s) and {1} attachment(s)", signers.Count, selectedAttachments.Count);
+
             try
             {
-                EnvelopeDefinition env = MakeEnvelope(signers, selectedAttachments, envStatus);
+                EnvelopeDefinition env = MakeEnvelope(signers, selectedAttachments, envStatus, _logger);
+                _logger.LogDebug("Envelope definition created successfully");
 
                 var docuSignClient = new DocuSignClient(basePath);
                 docuSignClient.Configuration.DefaultHeader.Add("Authorization", "Bearer " + accessToken);
+                _logger.LogDebug("DocuSign client configured with authorization");
 
                 EnvelopesApi envelopesApi = new EnvelopesApi(docuSignClient);
                 EnvelopeSummary results = envelopesApi.CreateEnvelope(accountId, env);
+
+                _logger.LogInformation("Envelope created successfully with ID: {0}", results.EnvelopeId);
+                _logger.LogDebug("Envelope URI: {0}", results.Uri);
+                _logger.LogDebug("Envelope Status: {0}", results.Status);
+                _logger.LogMethodExit("SendEnvelopeViaEmail", results.EnvelopeId);
+
                 return results.EnvelopeId;
             }
             catch (Exception ex)
             {
-                throw ex;
+                _logger.LogError("Error sending envelope via email", ex);
+                throw;
             }
         }
 
         public static EnvelopeDefinition MakeEnvelope(List<SignerDto> signers,
                                                     List<AttachmentDto> selectedAttachments,
-                                                    string envStatus)
+                                                    string envStatus,
+                                                    Logger logger)
         {
-            SignHere signHere = new SignHere
-            {
-                AnchorString = "/sn1/",
-                AnchorUnits = "pixels",
-                AnchorYOffset = "10",
-                AnchorXOffset = "20",
-            };
+            Logger _logger = logger;
 
-            List<Signer> dsSigners = new List<Signer>();
-            foreach (var signer in signers)
+            _logger.LogMethodEntry("MakeEnvelope", envStatus);
+            _logger.LogDebug("Creating envelope with {0} signers and {1} attachments", signers.Count, selectedAttachments.Count);
+
+            try
             {
-                Signer dsSigner = new Signer
+
+                List<Document> documents = new List<Document>();
+
+                int docIndex = 1;
+
+                List<SignHere> SignHereTabs = new List<SignHere>();
+
+
+                foreach (var doc in selectedAttachments)
                 {
-                    Email = signer.Email,
-                    Name = signer.Name,
-                    RecipientId = signer.SignerOrder.ToString(),
-                    RoutingOrder = signer.SignerOrder.ToString()
+                    _logger.LogDebug("Processing attachment ID: {0}, File: {1}", doc.AttachmentID, doc.OrigFileName);
+
+                    // Get attachment data from database
+                    byte[] attachmentData = GetAttachmentDataFromDatabase(doc.AttachmentID, _logger);
+                    string fileExtension = GetAttachmentFileType(doc.AttachmentID, _logger);
+
+                    _logger.LogDebug("Retrieved {0} bytes for attachment ID: {1}, extension: {2}",
+                        attachmentData?.Length ?? 0, doc.AttachmentID, fileExtension);
+
+                    Document document = new Document
+                    {
+                        DocumentBase64 = Convert.ToBase64String(attachmentData),
+                        Name = doc.OrigFileName,
+                        FileExtension = string.IsNullOrEmpty(fileExtension) ?
+                            System.IO.Path.GetExtension(doc.OrigFileName).TrimStart('.') : fileExtension,
+                        DocumentId = docIndex.ToString() //doc.AttachmentID
+                    };
+                    documents.Add(document);
+
+                    var signHere = new SignHere
+                    {
+                        DocumentId = (docIndex++).ToString(),
+                        PageNumber = "1",  //TODO : Make dynamic based on document length
+                        XPosition = "300",
+                        YPosition = "630"
+                    };
+
+                    SignHereTabs.Add(signHere);
+
+                    _logger.LogDebug("Added document: {0} (ID: {1})", doc.OrigFileName, doc.AttachmentID);
+                }
+
+                Tabs signerTabs = new Tabs
+                {
+                    SignHereTabs = SignHereTabs,
                 };
 
-                // Tabs are set per recipient / signer
-                Tabs signer1Tabs = new Tabs
-                {
-                    SignHereTabs = new List<SignHere> { signHere },
-                };
-                dsSigner.Tabs = signer1Tabs;
 
-                dsSigners.Add(dsSigner);
+                List<Signer> dsSigners = new List<Signer>();
+
+                for (int i = 0; i < signers.Count; i++)
+                {
+                    
+                    Signer dsSigner = new Signer
+                    {
+                        Email = signers[i].Email,
+                        Name = signers[i].Name,
+                        RecipientId = (i + 1).ToString(),
+                        RoutingOrder = "1",
+                        Tabs = signerTabs
+                    };
+
+                    dsSigners.Add(dsSigner);
+                }
+
+                EnvelopeDefinition env = new EnvelopeDefinition();
+                env.EmailSubject = "Please sign this document set";
+
+                // The order in the docs array determines the order in the envelope
+                env.Documents = documents;
+
+                // Add the recipients to the envelope object
+                Recipients recipients = new Recipients
+                {
+                    Signers = dsSigners
+                };
+                env.Recipients = recipients;
+
+                // Request that the envelope be sent by setting |status| to "sent".
+                // To request that the envelope be created as a draft, set to "created"
+                env.Status = envStatus;
+
+                _logger.LogInformation("Envelope definition created with {0} document(s) and {1} signer(s), status: {2}",
+                    documents.Count, dsSigners.Count, envStatus);
+                _logger.LogDebug("Email subject: {0}", env.EmailSubject);
+                _logger.LogMethodExit("MakeEnvelope");
+
+                return env;
             }
-
-            List<Document> documents = new List<Document>();
-
-            int docIndex = 1;
-
-            foreach (var doc in selectedAttachments)
+            catch (Exception ex)
             {
-                // Get attachment data from database
-                byte[] attachmentData = GetAttachmentDataFromDatabase(doc.AttachmentID);
-                string fileExtension = GetAttachmentFileType(doc.AttachmentID);
-
-                Document document = new Document
-                {
-                    DocumentBase64 = Convert.ToBase64String(attachmentData),
-                    Name = doc.OrigFileName,
-                    FileExtension = string.IsNullOrEmpty(fileExtension) ?
-                        System.IO.Path.GetExtension(doc.OrigFileName).TrimStart('.') : fileExtension,
-                    DocumentId = docIndex.ToString()
-                };
-                documents.Add(document);
+                _logger.LogError("Error making envelope", ex);
+                throw;
             }
-
-            EnvelopeDefinition env = new EnvelopeDefinition();
-            env.EmailSubject = "Please sign this document set";
-
-            // The order in the docs array determines the order in the envelope
-            env.Documents = documents;
-
-            // Add the recipients to the envelope object
-            Recipients recipients = new Recipients
-            {
-                Signers = dsSigners
-            };
-            env.Recipients = recipients;
-
-            // Request that the envelope be sent by setting |status| to "sent".
-            // To request that the envelope be created as a draft, set to "created"
-            env.Status = envStatus;
-
-            return env;
         }
 
-        private static byte[] GetAttachmentDataFromDatabase(string attachmentId)
+        private static byte[] GetAttachmentDataFromDatabase(string attachmentId, Logger logger)
         {
-            string query = "SELECT AttachmentData, AttachmentID, AttachmentFileType " +
+            Logger _logger = logger;
+
+            _logger.LogMethodEntry("GetAttachmentDataFromDatabase", attachmentId);
+
+            string query = "SELECT TOP 100 AttachmentData, AttachmentID, AttachmentFileType " +
                           "FROM [VPAttachments].[dbo].[bHQAF] WHERE AttachmentID = @AttachmentID";
 
-            using (SqlConnection connection = new SqlConnection(AttachmentDBConnection))
-            using (SqlCommand command = new SqlCommand(query, connection))
+            try
             {
-                command.Parameters.AddWithValue("@AttachmentID", attachmentId);
-                connection.Open();
-
-                using (SqlDataReader reader = command.ExecuteReader())
+                _logger.LogDebug("Connecting to AttachmentDB");
+                using (SqlConnection connection = new SqlConnection(AttachmentDBConnection))
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    if (reader.Read())
+                    command.Parameters.AddWithValue("@AttachmentID", attachmentId);
+                    connection.Open();
+
+                    _logger.LogDebug("Executing query for attachment data: {0}", attachmentId);
+
+                    using (SqlDataReader reader = command.ExecuteReader())
                     {
-                        if (reader["AttachmentData"] != DBNull.Value)
+                        if (reader.Read())
                         {
-                            return (byte[])reader["AttachmentData"];
+                            if (reader["AttachmentData"] != DBNull.Value)
+                            {
+                                byte[] data = (byte[])reader["AttachmentData"];
+                                _logger.LogInformation("Retrieved {0} bytes for attachment ID: {1}", data.Length, attachmentId);
+                                _logger.LogMethodExit("GetAttachmentDataFromDatabase", data.Length);
+                                return data;
+                            }
+                            else
+                            {
+                                _logger.LogError("AttachmentData is null for AttachmentID: {0}", attachmentId);
+                                throw new Exception($"AttachmentData is null for AttachmentID: {attachmentId}");
+                            }
                         }
                         else
                         {
-                            throw new Exception($"AttachmentData is null for AttachmentID: {attachmentId}");
+                            _logger.LogError("No attachment found with AttachmentID: {0}", attachmentId);
+                            throw new Exception($"No attachment found with AttachmentID: {attachmentId}");
                         }
-                    }
-                    else
-                    {
-                        throw new Exception($"No attachment found with AttachmentID: {attachmentId}");
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error retrieving attachment data for ID: {attachmentId}", ex);
+                throw;
+            }
         }
 
-        private static string GetAttachmentFileType(string attachmentId)
+        private static string GetAttachmentFileType(string attachmentId, Logger logger)
         {
+            Logger _logger = logger;
+
+            _logger.LogMethodEntry("GetAttachmentFileType", attachmentId);
+
             string query = "SELECT TOP 1 AttachmentFileType " +
                           "FROM [VPAttachments].[dbo].[bHQAF] WHERE AttachmentID = @AttachmentID";
 
-            using (SqlConnection connection = new SqlConnection(AttachmentDBConnection))
-            using (SqlCommand command = new SqlCommand(query, connection))
+            try
             {
-                command.Parameters.AddWithValue("@AttachmentID", attachmentId);
-                connection.Open();
+                using (SqlConnection connection = new SqlConnection(AttachmentDBConnection))
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@AttachmentID", attachmentId);
+                    connection.Open();
 
-                var result = command.ExecuteScalar();
-                return result?.ToString()?.TrimStart('.') ?? string.Empty;
+                    var result = command.ExecuteScalar();
+                    string fileType = result?.ToString()?.TrimStart('.') ?? string.Empty;
+
+                    _logger.LogDebug("Retrieved file type '{0}' for attachment ID: {1}", fileType, attachmentId);
+                    _logger.LogMethodExit("GetAttachmentFileType", fileType);
+
+                    return fileType;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error retrieving file type for attachment ID: {attachmentId}", ex);
+                throw;
             }
         }
 
         public static byte[] Document1(string signerEmail, string signerName, string ccEmail, string ccName)
         {
-            // Data for this method
-            // signerEmail
-            // signerName
-            // ccEmail
-            // ccName
             return Encoding.UTF8.GetBytes(
             " <!DOCTYPE html>\n" +
                 "    <html>\n" +

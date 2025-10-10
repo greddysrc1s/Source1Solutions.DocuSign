@@ -57,5 +57,25 @@ namespace Source1Solutions.DocuSign.Sync
         {
             return Configuration["DocuSign:PrivateKeyFile"] ?? string.Empty;
         }
+
+        public static string GetLogFilePath()
+        {
+            return Configuration["Logging:LogFilePath"] ?? "C:\\Logs\\DocuSign\\";
+        }
+
+        public static string GetLogFileName()
+        {
+            return Configuration["Logging:LogFileName"] ?? "DocuSign_{date}.log";
+        }
+
+        public static string GetLogLevel()
+        {
+            return Configuration["Logging:LogLevel"] ?? "Information";
+        }
+
+        public static int GetLogRetentionDays()
+        {
+            return int.TryParse(Configuration["Logging:RetentionDays"], out int days) ? days : 30;
+        }
     }
 }
