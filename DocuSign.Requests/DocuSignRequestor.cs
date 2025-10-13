@@ -2,6 +2,7 @@
 using DocuSign.eSign.Client;
 using DocuSign.eSign.Client.Auth;
 using DocuSign.eSign.Model;
+using Org.BouncyCastle.Utilities.Zlib;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -167,10 +168,11 @@ namespace DocuSign.Requests
             try
             {
                 // Step 1: Initialize DocuSign client
-                var apiClient = new ApiClient("https://demo.docusign.net/restapi");
+                var apiClient = new ApiClient(_userInputs.DocuSignApiBaseUrl);
                 apiClient.Configuration.DefaultHeader.Add("Authorization", "Bearer " + accessToken.access_token);
                 
                 _logger.LogDebug("API Client initialized for envelope status check");
+                _logger.LogDebug("Using API Base URL: {0}", _userInputs.DocuSignApiBaseUrl);
 
                 // Step 2: Create Envelopes API instance
                 var envelopesApi = new EnvelopesApi(apiClient);
@@ -193,38 +195,51 @@ namespace DocuSign.Requests
             }
         }
 
-        public string DownloadCombinedPdf(string accountId, string envelopeId, string outputFilePath)
+        public byte[] DownloadCombinedPdfAsBytes(string accountId, string envelopeId)
         {
-            _logger.LogMethodEntry("DownloadCombinedPdf", accountId, envelopeId, outputFilePath);
+            _logger.LogMethodEntry("DownloadCombinedPdfAsBytes", accountId, envelopeId);
             
             try
             {
                 // Step 1: Initialize API client
-                var apiClient = new ApiClient("https://demo.docusign.net/restapi");
+                var apiClient = new ApiClient(_userInputs.DocuSignApiBaseUrl);
                 apiClient.Configuration.DefaultHeader.Add("Authorization", "Bearer " + accessToken.access_token);
                 
                 _logger.LogDebug("API Client initialized for PDF download");
+                _logger.LogDebug("Using API Base URL: {0}", _userInputs.DocuSignApiBaseUrl);
 
                 // Step 2: Create EnvelopesApi instance
                 var envelopesApi = new EnvelopesApi(apiClient);
 
-                // Step 3: Download combined document (all PDFs merged + certificate)
-                _logger.LogInformation("Downloading combined PDF for envelope ID: {0}", envelopeId);
-                _logger.LogDebug("Output file path: {0}", outputFilePath);
+                string folderPath = @"C:\Logs\DocuSign\Sync";
+                string filePath = Path.Combine(folderPath, $"Envelope_{envelopeId}_Combined_{DateTime.Now.ToString("yyyyMMdd_HHmmss")}.pdf");
+                string filePath1 = Path.Combine(folderPath, $"Envelope2_{envelopeId}_Combined_{DateTime.Now.ToString("yyyyMMdd_HHmmss")}.pdf");
+
+                // Step 3: Download combined document (all PDFs merged + certificate) as stream
+                _logger.LogInformation("Downloading combined PDF stream for envelope ID: {0}", envelopeId);
                 
+                byte[] pdfBytes;
                 using (var stream = envelopesApi.GetDocument(accountId, envelopeId, "combined"))
                 {
-                    using (var fileStream = File.Create(outputFilePath))
+                    using (var memoryStream = new MemoryStream())
+                    {
+                        stream.CopyTo(memoryStream);
+                        pdfBytes = memoryStream.ToArray();
+
+                        File.WriteAllBytes(filePath, pdfBytes);
+
+                    }
+
+                    using (var fileStream = new FileStream(filePath1, FileMode.Create, FileAccess.Write))
                     {
                         stream.CopyTo(fileStream);
                     }
                 }
                 
-                FileInfo fileInfo = new FileInfo(outputFilePath);
-                _logger.LogInformation("Successfully downloaded combined PDF. File size: {0} bytes", fileInfo.Length);
-                _logger.LogMethodExit("DownloadCombinedPdf", outputFilePath);
+                _logger.LogInformation("Successfully downloaded combined PDF. File size: {0} bytes", pdfBytes.Length);
+                _logger.LogMethodExit("DownloadCombinedPdfAsBytes", pdfBytes.Length);
 
-                return outputFilePath;
+                return pdfBytes;
             }
             catch (Exception ex)
             {

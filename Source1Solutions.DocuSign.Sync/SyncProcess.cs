@@ -49,7 +49,8 @@ namespace Source1Solutions.DocuSign.Sync
                 DocuSignImpersonatedUserID = AppSettings.GetDocuSignImpersonatedUserID(),
                 DocuSignPrivateKeyFile = AppSettings.GetDocuSignPrivateKeyFile(),
                 DocuSignAccountID = AppSettings.GetDocuSignAccountID(),
-                AttachmentDBConnection = AppSettings.GetAttachmentDBConnectionString()
+                AttachmentDBConnection = AppSettings.GetAttachmentDBConnectionString(),
+                DocuSignApiBaseUrl = AppSettings.GetDocuSignApiBaseUrl()
             };
 
             _logger.LogInformation("UserInputs initialized successfully");
@@ -105,34 +106,22 @@ namespace Source1Solutions.DocuSign.Sync
                             if (envelope.Status == "completed" && fileNames != null && fileNames.Count > 0)
                             {
                                 string fileName = string.Join("_", fileNames);
-                                fileName = Path.Combine(@"C:\Users\GuruPrasadReddy\OneDrive - Source One Solutions\Desktop\SourceOne", $"{fileName}_combined.pdf");
+                                fileName = $"{fileName}_combined.pdf";
                                 
-                                _logger.LogInformation("Downloading combined PDF to: {0}", fileName);
+                                _logger.LogInformation("Downloading combined PDF for envelope: {0}", envelopeID);
 
-                                // Download and save the documents
-                                var combinedPdf = docuSignRequestor.DownloadCombinedPdf(AppSettings.GetDocuSignAccountID(),
-                                                                                            envelopeID,
-                                                                                            fileName);
+                                // Download the PDF as byte array (stream)
+                                var pdfBytes = docuSignRequestor.DownloadCombinedPdfAsBytes(AppSettings.GetDocuSignAccountID(), envelopeID);
                                                                                             
-                                if (combinedPdf != null && combinedPdf.Length > 0)
+                                if (pdfBytes != null && pdfBytes.Length > 0)
                                 {
-                                    _logger.LogInformation("Successfully downloaded {0} bytes for envelope ID: {1}", combinedPdf.Length, envelopeID);
+                                    _logger.LogInformation("Successfully downloaded {0} bytes for envelope ID: {1}", pdfBytes.Length, envelopeID);
                                     
-                                    // Update the status in the database
-                                    string updateCommand = @"UPDATE udtDocuSignTracking_S1S
-                                                     SET Status = @Status
-                                                     WHERE EnvolpeID = @EnvolpeID";
-                                    using (SqlConnection connection = new SqlConnection(AppSettings.GetConnectionString()))
-                                    using (SqlCommand command = new SqlCommand(updateCommand, connection))
-                                    {
-                                        command.Parameters.AddWithValue("@Status", envelope.Status);
-                                        command.Parameters.AddWithValue("@EnvolpeID", envelopeID);
-                                        connection.Open();
-                                        int rowsAffected = command.ExecuteNonQuery();
-                                        
-                                        _logger.LogInformation("Updated status to '{0}' for envelope ID: {1} ({2} row(s) affected)", 
-                                            envelope.Status, envelopeID, rowsAffected);
-                                    }
+                                    // Save PDF to database using stored procedure
+                                    int docuSignID = GetDocuSignIDByEnvelopeID(envelopeID);
+                                    SavePdfToDatabase(docuSignID, envelopeID, fileName, pdfBytes, envelope.Status);
+                                    
+                                    _logger.LogInformation("Successfully saved PDF to database for envelope ID: {0}", envelopeID);
                                     
                                     successCount++;
                                 }
@@ -188,6 +177,7 @@ namespace Source1Solutions.DocuSign.Sync
             var Key2 = dicArgs.ContainsKey("contractID") ? dicArgs["contractID"].Trim() : string.Empty;
 
             _logger.LogDebug("Query parameters - RequestFrom: {0}, Key_1: {1}, Key_2: {2}", RequestFrom, Key1, Key2);
+            _logger.LogDebug("SQL Command: {0}", sqlCommand);   
 
             try
             {
@@ -266,42 +256,97 @@ namespace Source1Solutions.DocuSign.Sync
             return lstFileNames;
         }
 
-        private string GetUniqueAttachmentID()
+        private int GetDocuSignIDByEnvelopeID(string envelopeID)
         {
-            _logger.LogMethodEntry("GetUniqueAttachmentID");
+            _logger.LogMethodEntry("GetDocuSignIDByEnvelopeID", envelopeID);
             
-            string uniqueID = string.Empty;
-            var Key1 = dicArgs.ContainsKey("companyID") ? dicArgs["companyID"] : string.Empty;
-            var Key2 = dicArgs.ContainsKey("contractID") ? dicArgs["contractID"].Trim() : string.Empty;
+            int docuSignID = 0;
+            string sqlCommand = @"SELECT DocuSignID, Requestor, RequestFrom 
+                                  FROM udtDocuSignTracking_S1S 
+                                  WHERE EnvolpeID = @EnvelopeID";
 
-            _logger.LogDebug("Query parameters - Key_1: {0}, Key_2: {1}", Key1, Key2);
-
-            string sqlCommand = @"select UniqueAttchID from JCCM where JCCo  = LTRIM(RTRIM(@Key_1)) 
-                                            and LTRIM(RTRIM(Contract)) = LTRIM(RTRIM(@Key_2))";
             try
             {
                 using (SqlConnection connection = new SqlConnection(AppSettings.GetConnectionString()))
                 using (SqlCommand command = new SqlCommand(sqlCommand, connection))
                 {
-                    command.Parameters.AddWithValue("@Key_1", Key1);
-                    command.Parameters.AddWithValue("@Key_2", Key2);
+                    command.Parameters.AddWithValue("@EnvelopeID", envelopeID);
                     connection.Open();
                     
                     _logger.LogDebug("Executing query: {0}", sqlCommand);
                     
-                    uniqueID = command.ExecuteScalar()?.ToString() ?? string.Empty;
-                    _logger.LogInformation("Retrieved unique attachment ID: {0}", uniqueID);
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            docuSignID = Convert.ToInt32(reader["DocuSignID"]);
+                            _logger.LogInformation("Retrieved DocuSignID: {0} for envelope: {1}", docuSignID, envelopeID);
+                        }
+                    }
                 }
                 
-                _logger.LogMethodExit("GetUniqueAttachmentID", uniqueID);
+                _logger.LogMethodExit("GetDocuSignIDByEnvelopeID", docuSignID);
             }
             catch (Exception ex)
             {
-                _logger.LogError("Error retrieving unique attachment ID", ex);
+                _logger.LogError($"Error retrieving DocuSignID for envelope ID: {envelopeID}", ex);
                 throw;
             }
             
-            return uniqueID;
+            return docuSignID;
+        }
+
+        private void SavePdfToDatabase(int docuSignID, string envelopeID, string fileName, byte[] pdfBytes, string status)
+        {
+            _logger.LogMethodEntry("SavePdfToDatabase", docuSignID, envelopeID, fileName, pdfBytes.Length, status);
+            
+            try
+            {
+                // Get tracking info
+                string requestor = dicArgs.ContainsKey("currentUser") ? dicArgs["currentUser"] : "greddy@src1s.com_1075";
+
+
+                using (SqlConnection connection = new SqlConnection(AppSettings.GetConnectionString()))
+                {
+                    
+                    _logger.LogDebug("Requestor: {0}", requestor);
+                    
+                    // Call stored procedure to save PDF
+                    using (SqlCommand command = new SqlCommand("brptUpdateDocuSignFileToDB_S1S", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                                                
+                        // Add parameters
+                        command.Parameters.AddWithValue("@Requestor", requestor);
+                        command.Parameters.AddWithValue("@Descripption", $"DocuSign completed document - {fileName}");
+                        command.Parameters.AddWithValue("@FileName", fileName);
+                        command.Parameters.AddWithValue("@FileType", "pdf");
+                        command.Parameters.AddWithValue("@FileData", pdfBytes);
+                        command.Parameters.AddWithValue("@DocuSignID", docuSignID);
+                        command.Parameters.AddWithValue("@Status", status);
+                        
+                        _logger.LogDebug("Executing stored procedure: brptUpdateDocuSignFileToDB_S1S");
+                        _logger.LogDebug("Parameters - DocuSignID: {0}, EnvelopeID: {1}, FileName: {2}, FileSize: {3} bytes", 
+                            docuSignID, envelopeID, fileName, pdfBytes.Length);
+                        
+                        connection.Open();
+
+                        command.ExecuteNonQuery();
+
+                        connection.Close();
+
+                        _logger.LogInformation("Successfully saved PDF to database. DocuSignID: {0}, Size: {1} bytes", 
+                            docuSignID, pdfBytes.Length);
+                    }
+                }
+                
+                _logger.LogMethodExit("SavePdfToDatabase");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error saving PDF to database for DocuSignID: {docuSignID}", ex);
+                throw;
+            }
         }
     }
 }

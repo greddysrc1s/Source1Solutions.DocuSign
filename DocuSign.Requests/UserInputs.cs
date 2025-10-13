@@ -23,5 +23,7 @@ namespace DocuSign.Requests
 
         public string DocuSignAccountID { get; set; }
 
+        public string DocuSignApiBaseUrl { get; set; }
+
     }
 }

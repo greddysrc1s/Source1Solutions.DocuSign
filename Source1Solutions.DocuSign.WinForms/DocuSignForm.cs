@@ -408,7 +408,8 @@ namespace Source1Solutions.DocuSign.WinForms
                     DocuSignImpersonatedUserID = AppSettings.GetDocuSignImpersonatedUserID(),
                     DocuSignPrivateKeyFile = AppSettings.GetDocuSignPrivateKeyFile(),
                     DocuSignAccountID = AppSettings.GetDocuSignAccountID(),
-                    AttachmentDBConnection = AppSettings.GetAttachmentDBConnectionString()
+                    AttachmentDBConnection = AppSettings.GetAttachmentDBConnectionString(),
+                    DocuSignApiBaseUrl = AppSettings.GetDocuSignApiBaseUrl()
                 };
 
                 _logger.LogInformation("Creating DocuSignRequestor with logger");

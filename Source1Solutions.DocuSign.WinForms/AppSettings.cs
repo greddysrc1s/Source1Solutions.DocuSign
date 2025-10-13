@@ -58,6 +58,11 @@ namespace Source1Solutions.DocuSign.WinForms
             return Configuration["DocuSign:PrivateKeyFile"] ?? string.Empty;
         }
 
+        public static string GetDocuSignApiBaseUrl()
+        {
+            return Configuration["DocuSign:ApiBaseUrl"] ?? "https://demo.docusign.net/restapi";
+        }
+
         public static string GetLogFilePath()
         {
             return Configuration["Logging:LogFilePath"] ?? "C:\\Logs\\DocuSign\\";
