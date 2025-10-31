@@ -2,7 +2,7 @@
   "profiles": {
     "Source1Solutions.DocuSign.WinForms": {
       "commandName": "Project",
-      "commandLineArgs": "toEmail=guru@gmai.com companyID=1 \"contractID=    21-000\" component=JCCM"
+      "commandLineArgs": "companyID=1 \"contractID=    21-000\" currentUser=greddy@src1s.com_1075 component=JCCM"
     }
   }
 }

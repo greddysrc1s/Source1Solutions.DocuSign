@@ -17,6 +17,7 @@ namespace DocuSign.Requests
                                                     string basePath,
                                                     string accountId,
                                                     List<SignerDto> signers,
+                                                    List<CarbonCopyDto> carbonCopies,
                                                     List<AttachmentDto> selectedAttachments,
                                                     string envStatus,
                                                     Logger logger)
@@ -24,11 +25,12 @@ namespace DocuSign.Requests
             Logger _logger = logger;
 
             _logger.LogMethodEntry("SendEnvelopeViaEmail", basePath, accountId, envStatus);
-            _logger.LogInformation("Sending envelope with {0} signer(s) and {1} attachment(s)", signers.Count, selectedAttachments.Count);
+            _logger.LogInformation("Sending envelope with {0} signer(s), {1} carbon copy recipient(s), and {2} attachment(s)", 
+                signers.Count, carbonCopies.Count, selectedAttachments.Count);
 
             try
             {
-                EnvelopeDefinition env = MakeEnvelope(signers, selectedAttachments, envStatus, _logger);
+                EnvelopeDefinition env = MakeEnvelope(signers, carbonCopies, selectedAttachments, envStatus, _logger);
                 _logger.LogDebug("Envelope definition created successfully");
 
                 var docuSignClient = new DocuSignClient(basePath);
@@ -53,6 +55,7 @@ namespace DocuSign.Requests
         }
 
         public static EnvelopeDefinition MakeEnvelope(List<SignerDto> signers,
+                                                    List<CarbonCopyDto> carbonCopies,
                                                     List<AttachmentDto> selectedAttachments,
                                                     string envStatus,
                                                     Logger logger)
@@ -60,7 +63,8 @@ namespace DocuSign.Requests
             Logger _logger = logger;
 
             _logger.LogMethodEntry("MakeEnvelope", envStatus);
-            _logger.LogDebug("Creating envelope with {0} signers and {1} attachments", signers.Count, selectedAttachments.Count);
+            _logger.LogDebug("Creating envelope with {0} signers, {1} carbon copy recipients, and {2} attachments", 
+                signers.Count, carbonCopies.Count, selectedAttachments.Count);
 
             try
             {
@@ -127,6 +131,25 @@ namespace DocuSign.Requests
                     };
 
                     dsSigners.Add(dsSigner);
+                    _logger.LogDebug("Added signer: {0} ({1})", signers[i].Name, signers[i].Email);
+                }
+
+                // Add carbon copy recipients
+                List<CarbonCopy> dsCarbonCopies = new List<CarbonCopy>();
+                int ccRecipientIdStart = signers.Count + 1;
+
+                for (int i = 0; i < carbonCopies.Count; i++)
+                {
+                    CarbonCopy dsCarbonCopy = new CarbonCopy
+                    {
+                        Email = carbonCopies[i].Email,
+                        Name = carbonCopies[i].Name,
+                        RecipientId = (ccRecipientIdStart + i).ToString(),
+                        RoutingOrder = "2" // Carbon copies receive after signers
+                    };
+
+                    dsCarbonCopies.Add(dsCarbonCopy);
+                    _logger.LogDebug("Added carbon copy recipient: {0} ({1})", carbonCopies[i].Name, carbonCopies[i].Email);
                 }
 
                 EnvelopeDefinition env = new EnvelopeDefinition();
@@ -138,7 +161,8 @@ namespace DocuSign.Requests
                 // Add the recipients to the envelope object
                 Recipients recipients = new Recipients
                 {
-                    Signers = dsSigners
+                    Signers = dsSigners,
+                    CarbonCopies = dsCarbonCopies.Count > 0 ? dsCarbonCopies : null
                 };
                 env.Recipients = recipients;
 
@@ -146,8 +170,8 @@ namespace DocuSign.Requests
                 // To request that the envelope be created as a draft, set to "created"
                 env.Status = envStatus;
 
-                _logger.LogInformation("Envelope definition created with {0} document(s) and {1} signer(s), status: {2}",
-                    documents.Count, dsSigners.Count, envStatus);
+                _logger.LogInformation("Envelope definition created with {0} document(s), {1} signer(s), and {2} carbon copy recipient(s), status: {3}",
+                    documents.Count, dsSigners.Count, dsCarbonCopies.Count, envStatus);
                 _logger.LogDebug("Email subject: {0}", env.EmailSubject);
                 _logger.LogMethodExit("MakeEnvelope");
 

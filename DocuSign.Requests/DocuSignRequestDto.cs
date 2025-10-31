@@ -9,6 +9,7 @@ namespace DocuSign.Requests
     public class DocuSignRequestDto
     {
         public List<SignerDto> Signers { get; set; } = new List<SignerDto>();
+        public List<CarbonCopyDto> CarbonCopies { get; set; } = new List<CarbonCopyDto>();
         public List<AttachmentDto> SelectedAttachments { get; set; } = new List<AttachmentDto>();
         public DateTime RequestDateTime { get; set; } = DateTime.Now;
         public string RequestId { get; set; } = Guid.NewGuid().ToString();
@@ -25,6 +26,13 @@ namespace DocuSign.Requests
         public string Name { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public int SignerOrder { get; set; }
+    }
+
+    public class CarbonCopyDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public int CarbonCopyOrder { get; set; }
     }
 
     public class AttachmentDto

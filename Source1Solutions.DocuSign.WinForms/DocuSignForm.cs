@@ -17,6 +17,11 @@ namespace Source1Solutions.DocuSign.WinForms
         private List<TextBox> signerNameTextBoxes = new List<TextBox>();
         private int signerCount = 1; // Starting with 1 (the initial signer)
 
+        // List to keep track of dynamically created carbon copy controls
+        private List<TextBox> carbonCopyEmailTextBoxes = new List<TextBox>();
+        private List<TextBox> carbonCopyNameTextBoxes = new List<TextBox>();
+        private int carbonCopyCount = 1; // Starting with 1 (the initial carbon copy)
+
         private Logger _logger;
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
@@ -59,12 +64,27 @@ namespace Source1Solutions.DocuSign.WinForms
             signerEmailTextBoxes.Add(txtSignerEmail);
             signerNameTextBoxes.Add(txtSignerName);
 
-            // Wire up the button click events
+            // Wire up the button click events for signers
             btnMoreSigners.Click += BtnMoreSigners_Click;
             btnRemoveSigner.Click += BtnRemoveSigner_Click;
 
             // Initially disable Remove Signer button (only one signer)
             btnRemoveSigner.Enabled = false;
+
+            // Setup Carbon Copy controls
+            SetPlaceholder(txtCarbonCopyEmail1, "Carbon Copy Email");
+            SetPlaceholder(txtCarbonCopyName1, "Carbon Copy Name");
+
+            // Add the initial carbon copy textboxes to our lists
+            carbonCopyEmailTextBoxes.Add(txtCarbonCopyEmail1);
+            carbonCopyNameTextBoxes.Add(txtCarbonCopyName1);
+
+            // Wire up the button click events for carbon copies
+            btnCarbonCopyAdd.Click += BtnCarbonCopyAdd_Click;
+            btnCarbonCopyRemove.Click += BtnCarbonCopyRemove_Click;
+
+            // Initially disable Remove Carbon Copy button (only one carbon copy)
+            btnCarbonCopyRemove.Enabled = false;
 
             _logger.LogInformation("DocuSignForm initialized successfully");
 
@@ -177,6 +197,108 @@ namespace Source1Solutions.DocuSign.WinForms
             {
                 _logger.LogError("Error removing signer", ex);
                 MessageBox.Show($"Error removing signer: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnCarbonCopyAdd_Click(object sender, EventArgs e)
+        {
+            _logger.LogMethodEntry("BtnCarbonCopyAdd_Click");
+
+            carbonCopyCount++;
+            int yOffset = 128 + (carbonCopyCount - 1) * 35; // 35 pixels spacing between rows
+
+            _logger.LogDebug("Adding carbon copy #{0} at Y offset: {1}", carbonCopyCount, yOffset);
+
+            // Create new email textbox
+            TextBox newEmailTextBox = new TextBox();
+            newEmailTextBox.Name = $"txtCarbonCopyEmail{carbonCopyCount}";
+            newEmailTextBox.Location = new Point(225, yOffset);
+            newEmailTextBox.Size = new Size(273, 27);
+            newEmailTextBox.TabIndex = 13 + (carbonCopyCount - 1) * 2;
+            SetPlaceholder(newEmailTextBox, $"Carbon Copy {carbonCopyCount} Email");
+
+            // Create new name textbox
+            TextBox newNameTextBox = new TextBox();
+            newNameTextBox.Name = $"txtCarbonCopyName{carbonCopyCount}";
+            newNameTextBox.Location = new Point(544, yOffset);
+            newNameTextBox.Size = new Size(324, 27);
+            newNameTextBox.TabIndex = 14 + (carbonCopyCount - 1) * 2;
+            SetPlaceholder(newNameTextBox, $"Carbon Copy {carbonCopyCount} Name");
+
+            // Add to form
+            this.Controls.Add(newEmailTextBox);
+            this.Controls.Add(newNameTextBox);
+
+            // Add to our tracking lists
+            carbonCopyEmailTextBoxes.Add(newEmailTextBox);
+            carbonCopyNameTextBoxes.Add(newNameTextBox);
+
+            // Move other controls down if needed
+            MoveControlsDown(yOffset + 35);
+
+            // Enable Remove Carbon Copy button since we have more than one
+            btnCarbonCopyRemove.Enabled = true;
+
+            _logger.LogInformation("Successfully added carbon copy #{0}. Total carbon copies: {1}", carbonCopyCount, carbonCopyEmailTextBoxes.Count);
+            _logger.LogMethodExit("BtnCarbonCopyAdd_Click");
+        }
+
+        private void BtnCarbonCopyRemove_Click(object sender, EventArgs e)
+        {
+            _logger.LogMethodEntry("BtnCarbonCopyRemove_Click");
+
+            // Only remove if we have more than one carbon copy
+            if (carbonCopyEmailTextBoxes.Count <= 1)
+            {
+                _logger.LogWarning("Cannot remove carbon copy - only one carbon copy remains");
+                MessageBox.Show("Cannot remove the last carbon copy. At least one carbon copy is required.",
+                    "Cannot Remove", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                // Get the last email and name textboxes
+                TextBox lastEmailTextBox = carbonCopyEmailTextBoxes[carbonCopyEmailTextBoxes.Count - 1];
+                TextBox lastNameTextBox = carbonCopyNameTextBoxes[carbonCopyNameTextBoxes.Count - 1];
+
+                _logger.LogDebug("Removing carbon copy #{0} ({1}, {2})",
+                    carbonCopyCount, lastEmailTextBox.Name, lastNameTextBox.Name);
+
+                // Remove from form
+                this.Controls.Remove(lastEmailTextBox);
+                this.Controls.Remove(lastNameTextBox);
+
+                // Dispose the controls
+                lastEmailTextBox.Dispose();
+                lastNameTextBox.Dispose();
+
+                // Remove from tracking lists
+                carbonCopyEmailTextBoxes.RemoveAt(carbonCopyEmailTextBoxes.Count - 1);
+                carbonCopyNameTextBoxes.RemoveAt(carbonCopyNameTextBoxes.Count - 1);
+
+                // Decrement carbon copy count
+                carbonCopyCount--;
+
+                // Move controls up if needed
+                int newTopPosition = 128 + (carbonCopyCount - 1) * 35 + 35;
+                MoveControlsUp(newTopPosition);
+
+                // Disable Remove Carbon Copy button if only one carbon copy left
+                if (carbonCopyEmailTextBoxes.Count == 1)
+                {
+                    btnCarbonCopyRemove.Enabled = false;
+                    _logger.LogDebug("Disabled Remove Carbon Copy button - only one carbon copy remains");
+                }
+
+                _logger.LogInformation("Successfully removed carbon copy. Remaining carbon copies: {0}", carbonCopyEmailTextBoxes.Count);
+                _logger.LogMethodExit("BtnCarbonCopyRemove_Click");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error removing carbon copy", ex);
+                MessageBox.Show($"Error removing carbon copy: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -360,6 +482,40 @@ namespace Source1Solutions.DocuSign.WinForms
                 }
             }
 
+            // Validate carbon copy fields (optional - only if filled)
+            _logger.LogDebug("Validating {0} carbon copy recipient(s)", carbonCopyEmailTextBoxes.Count);
+
+            for (int i = 0; i < carbonCopyEmailTextBoxes.Count; i++)
+            {
+                TextBox emailTextBox = carbonCopyEmailTextBoxes[i];
+                TextBox nameTextBox = carbonCopyNameTextBoxes[i];
+                int ccNumber = i + 1;
+
+                string email = emailTextBox.Text.Trim();
+                string name = nameTextBox.Text.Trim();
+
+                // If either field is filled, both must be valid
+                if (!string.IsNullOrEmpty(email) || !string.IsNullOrEmpty(name))
+                {
+                    if (string.IsNullOrEmpty(email))
+                    {
+                        validationErrors.Add($"Carbon Copy {ccNumber} email is empty");
+                        _logger.LogWarning("Validation failed: Carbon Copy {0} email is empty", ccNumber);
+                    }
+                    else if (!IsValidEmail(email))
+                    {
+                        validationErrors.Add($"Carbon Copy {ccNumber} email is not valid");
+                        _logger.LogWarning("Validation failed: Carbon Copy {0} email '{1}' is not valid", ccNumber, email);
+                    }
+
+                    if (string.IsNullOrEmpty(name))
+                    {
+                        validationErrors.Add($"Carbon Copy {ccNumber} name is empty");
+                        _logger.LogWarning("Validation failed: Carbon Copy {0} name is empty", ccNumber);
+                    }
+                }
+            }
+
             // Check if any attachments are selected
             bool hasSelectedAttachments = false;
             int selectedCount = 0;
@@ -395,8 +551,8 @@ namespace Source1Solutions.DocuSign.WinForms
             // Create DTO object with validated data
             DocuSignRequestDto docuSignRequest = CreateDocuSignRequestDto();
 
-            _logger.LogInformation("Created DocuSignRequestDto with {0} signer(s) and {1} attachment(s)",
-                docuSignRequest.Signers.Count, docuSignRequest.SelectedAttachments.Count);
+            _logger.LogInformation("Created DocuSignRequestDto with {0} signer(s), {1} carbon copy recipient(s), and {2} attachment(s)",
+                docuSignRequest.Signers.Count, docuSignRequest.CarbonCopies.Count, docuSignRequest.SelectedAttachments.Count);
 
             try
             {
@@ -428,6 +584,7 @@ namespace Source1Solutions.DocuSign.WinForms
                                $"Database ID: {docuSignId}\n" +
                                $"Request ID: {docuSignRequest.RequestId}\n" +
                                $"Signers: {docuSignRequest.Signers.Count}\n" +
+                               $"Carbon Copies: {docuSignRequest.CarbonCopies.Count}\n" +
                                $"Selected Attachments: {docuSignRequest.SelectedAttachments.Count}\n" +
                                $"Request Time: {docuSignRequest.RequestDateTime:MM/dd/yyyy HH:mm:ss}";
 
@@ -456,6 +613,10 @@ namespace Source1Solutions.DocuSign.WinForms
             string signerEmails = string.Join(",", docuSignRequest.Signers.Select(s => s.Email));
             string signerNames = string.Join(",", docuSignRequest.Signers.Select(s => s.Name));
 
+            // Prepare comma-delimited strings for carbon copies
+            string carbonCopyEmails = string.Join(",", docuSignRequest.CarbonCopies.Select(cc => cc.Email));
+            string carbonCopyNames = string.Join(",", docuSignRequest.CarbonCopies.Select(cc => cc.Name));
+
             // Prepare comma-delimited strings for attachments
             string attachmentIds = string.Join(",", docuSignRequest.SelectedAttachments.Select(a => a.AttachmentID));
             string attachmentNames = string.Join(",", docuSignRequest.SelectedAttachments.Select(a => a.OrigFileName));
@@ -466,6 +627,8 @@ namespace Source1Solutions.DocuSign.WinForms
             _logger.LogDebug("Requestor: {0}", requestor);
             _logger.LogDebug("Signer Emails: {0}", signerEmails);
             _logger.LogDebug("Signer Names: {0}", signerNames);
+            _logger.LogDebug("Carbon Copy Emails: {0}", carbonCopyEmails);
+            _logger.LogDebug("Carbon Copy Names: {0}", carbonCopyNames);
             _logger.LogDebug("Attachment IDs: {0}", attachmentIds);
             _logger.LogDebug("Attachment Names: {0}", attachmentNames);
 
@@ -537,6 +700,24 @@ namespace Source1Solutions.DocuSign.WinForms
                     SignerOrder = i + 1
                 };
                 docuSignRequest.Signers.Add(signer);
+            }
+
+            // Add carbon copies (only if both email and name are filled)
+            for (int i = 0; i < carbonCopyEmailTextBoxes.Count; i++)
+            {
+                string email = carbonCopyEmailTextBoxes[i].Text.Trim();
+                string name = carbonCopyNameTextBoxes[i].Text.Trim();
+
+                if (!string.IsNullOrEmpty(email) && !string.IsNullOrEmpty(name))
+                {
+                    var carbonCopy = new CarbonCopyDto
+                    {
+                        Name = name,
+                        Email = email,
+                        CarbonCopyOrder = i + 1
+                    };
+                    docuSignRequest.CarbonCopies.Add(carbonCopy);
+                }
             }
 
             // Add selected attachments

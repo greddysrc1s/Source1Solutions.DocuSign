@@ -107,8 +107,8 @@ namespace DocuSign.Requests
         {
             _logger.LogMethodEntry("SendEnvelope");
             _logger.LogInformation("Sending envelope for Request ID: {0}", docuSignRequest.RequestId);
-            _logger.LogInformation("Number of signers: {0}, Number of attachments: {1}", 
-                docuSignRequest.Signers.Count, docuSignRequest.SelectedAttachments.Count);
+            _logger.LogInformation("Number of signers: {0}, Carbon copies: {1}, Number of attachments: {2}", 
+                docuSignRequest.Signers.Count, docuSignRequest.CarbonCopies.Count, docuSignRequest.SelectedAttachments.Count);
 
             try
             {
@@ -145,6 +145,7 @@ namespace DocuSign.Requests
                     acct.BaseUri + "/restapi", 
                     acct.AccountId,
                     docuSignRequest.Signers,
+                    docuSignRequest.CarbonCopies,
                     docuSignRequest.SelectedAttachments, 
                     "sent",
                     _logger);

@@ -40,13 +40,18 @@ namespace Source1Solutions.DocuSign.WinForms
             btnSendDocuments = new Button();
             btnExit = new Button();
             btnRemoveSigner = new Button();
+            lblCarbonCopy1 = new Label();
+            txtCarbonCopyEmail1 = new TextBox();
+            txtCarbonCopyName1 = new TextBox();
+            btnCarbonCopyRemove = new Button();
+            btnCarbonCopyAdd = new Button();
             ((System.ComponentModel.ISupportInitialize)dgvAttachments).BeginInit();
             SuspendLayout();
             // 
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new Point(81, 134);
+            label2.Location = new Point(81, 178);
             label2.Name = "label2";
             label2.Size = new Size(138, 20);
             label2.TabIndex = 2;
@@ -59,7 +64,7 @@ namespace Source1Solutions.DocuSign.WinForms
             dgvAttachments.AllowUserToResizeColumns = false;
             dgvAttachments.AllowUserToResizeRows = false;
             dgvAttachments.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvAttachments.Location = new Point(225, 134);
+            dgvAttachments.Location = new Point(225, 178);
             dgvAttachments.Name = "dgvAttachments";
             dgvAttachments.RowHeadersWidth = 51;
             dgvAttachments.Size = new Size(1059, 155);
@@ -109,7 +114,7 @@ namespace Source1Solutions.DocuSign.WinForms
             // 
             // btnSendDocuments
             // 
-            btnSendDocuments.Location = new Point(513, 349);
+            btnSendDocuments.Location = new Point(479, 380);
             btnSendDocuments.Name = "btnSendDocuments";
             btnSendDocuments.Size = new Size(177, 29);
             btnSendDocuments.TabIndex = 9;
@@ -119,7 +124,7 @@ namespace Source1Solutions.DocuSign.WinForms
             // 
             // btnExit
             // 
-            btnExit.Location = new Point(746, 349);
+            btnExit.Location = new Point(691, 380);
             btnExit.Name = "btnExit";
             btnExit.Size = new Size(177, 29);
             btnExit.TabIndex = 10;
@@ -136,11 +141,57 @@ namespace Source1Solutions.DocuSign.WinForms
             btnRemoveSigner.Text = "Remove Last Signer";
             btnRemoveSigner.UseVisualStyleBackColor = true;
             // 
+            // lblCarbonCopy1
+            // 
+            lblCarbonCopy1.AutoSize = true;
+            lblCarbonCopy1.Location = new Point(81, 131);
+            lblCarbonCopy1.Name = "lblCarbonCopy1";
+            lblCarbonCopy1.Size = new Size(91, 20);
+            lblCarbonCopy1.TabIndex = 12;
+            lblCarbonCopy1.Text = "CarbonCopy";
+            // 
+            // txtCarbonCopyEmail1
+            // 
+            txtCarbonCopyEmail1.Location = new Point(225, 128);
+            txtCarbonCopyEmail1.Name = "txtCarbonCopyEmail1";
+            txtCarbonCopyEmail1.Size = new Size(273, 27);
+            txtCarbonCopyEmail1.TabIndex = 13;
+            // 
+            // txtCarbonCopyName1
+            // 
+            txtCarbonCopyName1.Location = new Point(544, 128);
+            txtCarbonCopyName1.Name = "txtCarbonCopyName1";
+            txtCarbonCopyName1.Size = new Size(324, 27);
+            txtCarbonCopyName1.TabIndex = 14;
+            // 
+            // btnCarbonCopyRemove
+            // 
+            btnCarbonCopyRemove.Location = new Point(1102, 127);
+            btnCarbonCopyRemove.Name = "btnCarbonCopyRemove";
+            btnCarbonCopyRemove.Size = new Size(211, 29);
+            btnCarbonCopyRemove.TabIndex = 16;
+            btnCarbonCopyRemove.Text = "Remove Last CarbonCopy";
+            btnCarbonCopyRemove.UseVisualStyleBackColor = true;
+            // 
+            // btnCarbonCopyAdd
+            // 
+            btnCarbonCopyAdd.Location = new Point(906, 127);
+            btnCarbonCopyAdd.Name = "btnCarbonCopyAdd";
+            btnCarbonCopyAdd.Size = new Size(182, 29);
+            btnCarbonCopyAdd.TabIndex = 15;
+            btnCarbonCopyAdd.Text = "Add CarbonCopy";
+            btnCarbonCopyAdd.UseVisualStyleBackColor = true;
+            // 
             // DocuSignForm
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1458, 450);
+            Controls.Add(btnCarbonCopyRemove);
+            Controls.Add(btnCarbonCopyAdd);
+            Controls.Add(txtCarbonCopyName1);
+            Controls.Add(txtCarbonCopyEmail1);
+            Controls.Add(lblCarbonCopy1);
             Controls.Add(btnRemoveSigner);
             Controls.Add(btnExit);
             Controls.Add(btnSendDocuments);
@@ -170,5 +221,10 @@ namespace Source1Solutions.DocuSign.WinForms
         private Button btnSendDocuments;
         private Button btnExit;
         private Button btnRemoveSigner;
+        private Label lblCarbonCopy1;
+        private TextBox txtCarbonCopyEmail1;
+        private TextBox txtCarbonCopyName1;
+        private Button btnCarbonCopyRemove;
+        private Button btnCarbonCopyAdd;
     }
 }

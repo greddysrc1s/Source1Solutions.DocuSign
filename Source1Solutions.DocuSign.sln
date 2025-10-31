@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocuSign.Requests", "DocuSi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source1Solutions.DocuSign.Sync", "Source1Solutions.DocuSign.Sync\Source1Solutions.DocuSign.Sync.csproj", "{B9D71C5F-953D-493A-BC3E-8F858DD8E6FE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source1Solutions.DocuSign.WinSync", "Source1Solutions.DocuSign.WinSync\Source1Solutions.DocuSign.WinSync.csproj", "{8388D2E3-2A80-42B2-A258-3B305F46C34C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{B9D71C5F-953D-493A-BC3E-8F858DD8E6FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B9D71C5F-953D-493A-BC3E-8F858DD8E6FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B9D71C5F-953D-493A-BC3E-8F858DD8E6FE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8388D2E3-2A80-42B2-A258-3B305F46C34C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8388D2E3-2A80-42B2-A258-3B305F46C34C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8388D2E3-2A80-42B2-A258-3B305F46C34C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8388D2E3-2A80-42B2-A258-3B305F46C34C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
