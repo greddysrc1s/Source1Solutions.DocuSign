@@ -112,13 +112,13 @@ static void Main(string[] args)
 
 **Example Command Line Usage:**
 ```bash
-Source1Solutions.DocuSign.WinSync.exe contractID=12345 companyID=ABC123 requestor=JohnDoe component=ContractModule
+Source1Solutions.DocuSign.WinSync.exe Key_2_ID=12345 Key_1_ID=ABC123 requestor=JohnDoe component=ContractModule
 ```
 
 **Accessing Arguments:**
 ```csharp
-string contractID = dicArgs.ContainsKey("contractID") ? dicArgs["contractID"] : string.Empty;
-string companyID = dicArgs.ContainsKey("companyID") ? dicArgs["companyID"] : string.Empty;
+string contractID = dicArgs.ContainsKey("Key_2_ID") ? dicArgs["Key_2_ID"] : string.Empty;
+string companyID = dicArgs.ContainsKey("Key_1_ID") ? dicArgs["Key_1_ID"] : string.Empty;
 string requestor = dicArgs.ContainsKey("requestor") ? dicArgs["requestor"] : Environment.UserName;
 ```
 

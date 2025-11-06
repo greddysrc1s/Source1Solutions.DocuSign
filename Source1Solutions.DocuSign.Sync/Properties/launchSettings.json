@@ -2,7 +2,7 @@
   "profiles": {
     "Source1Solutions.DocuSign.Sync": {
       "commandName": "Project",
-      "commandLineArgs": "companyID=1 \"contractID=    21-000\" currentUser=greddy@src1s.com_1075 component=JCCM"
+      "commandLineArgs": "Key_1_ID=1 \"Key_2_ID=    21-000\" currentUser=greddy@src1s.com_1075 component=JCCM"
     }
   }
 }

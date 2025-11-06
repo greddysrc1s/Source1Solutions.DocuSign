@@ -1,6 +1,4 @@
-﻿
-
-namespace Source1Solutions.DocuSign.WinForms
+﻿namespace Source1Solutions.DocuSign.WinForms
 {
     partial class DocuSignForm
     {
@@ -45,6 +43,9 @@ namespace Source1Solutions.DocuSign.WinForms
             txtCarbonCopyName1 = new TextBox();
             btnCarbonCopyRemove = new Button();
             btnCarbonCopyAdd = new Button();
+            btnPreviousPage = new Button();
+            btnNextPage = new Button();
+            lblAttachmentPageInfo = new Label();
             ((System.ComponentModel.ISupportInitialize)dgvAttachments).BeginInit();
             SuspendLayout();
             // 
@@ -182,11 +183,45 @@ namespace Source1Solutions.DocuSign.WinForms
             btnCarbonCopyAdd.Text = "Add CarbonCopy";
             btnCarbonCopyAdd.UseVisualStyleBackColor = true;
             // 
+            // btnPreviousPage
+            // 
+            btnPreviousPage.Location = new Point(225, 345);
+            btnPreviousPage.Name = "btnPreviousPage";
+            btnPreviousPage.Size = new Size(120, 29);
+            btnPreviousPage.TabIndex = 17;
+            btnPreviousPage.Text = "< Previous";
+            btnPreviousPage.UseVisualStyleBackColor = true;
+            btnPreviousPage.Click += btnPreviousPage_Click;
+            // 
+            // btnNextPage
+            // 
+            btnNextPage.Location = new Point(558, 345);
+            btnNextPage.Name = "btnNextPage";
+            btnNextPage.Size = new Size(120, 29);
+            btnNextPage.TabIndex = 18;
+            btnNextPage.Text = "Next >";
+            btnNextPage.UseVisualStyleBackColor = true;
+            btnNextPage.Click += btnNextPage_Click;
+            // 
+            // lblAttachmentPageInfo
+            // 
+            lblAttachmentPageInfo.AutoSize = true;
+            lblAttachmentPageInfo.Location = new Point(363, 350);
+            lblAttachmentPageInfo.Name = "lblAttachmentPageInfo";
+            lblAttachmentPageInfo.Size = new Size(158, 20);
+            lblAttachmentPageInfo.TabIndex = 19;
+            lblAttachmentPageInfo.Text = "Page 1 of 1 (0 records)";
+            lblAttachmentPageInfo.TextAlign = ContentAlignment.MiddleCenter;
+            // 
             // DocuSignForm
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1458, 450);
+            AutoScroll = true;
+            ClientSize = new Size(1458, 600);
+            Controls.Add(lblAttachmentPageInfo);
+            Controls.Add(btnNextPage);
+            Controls.Add(btnPreviousPage);
             Controls.Add(btnCarbonCopyRemove);
             Controls.Add(btnCarbonCopyAdd);
             Controls.Add(txtCarbonCopyName1);
@@ -226,5 +261,8 @@ namespace Source1Solutions.DocuSign.WinForms
         private TextBox txtCarbonCopyName1;
         private Button btnCarbonCopyRemove;
         private Button btnCarbonCopyAdd;
+        private Button btnPreviousPage;
+        private Button btnNextPage;
+        private Label lblAttachmentPageInfo;
     }
 }

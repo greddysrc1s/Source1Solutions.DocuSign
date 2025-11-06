@@ -15,6 +15,7 @@ namespace Source1Solutions.DocuSign.WinSync
         private int _currentPage = 1;
         private const int _pageSize = 20;
         private int _totalPages = 0;
+        SyncProcess _syncProcess = null;
         private int _totalRecords = 0;
 
         public SyncForm(string[] args)
@@ -48,8 +49,10 @@ namespace Source1Solutions.DocuSign.WinSync
 
             // Set filter values from command line arguments
             txtRequestFrom.Text = dicArgs.ContainsKey("component") ? dicArgs["component"] : string.Empty;
-            txtKey1.Text = dicArgs.ContainsKey("companyID") ? dicArgs["companyID"] : string.Empty;
-            txtKey2.Text = dicArgs.ContainsKey("contractID") ? dicArgs["contractID"] : string.Empty;
+            txtKey1.Text = dicArgs.ContainsKey("Key_1_ID") ? dicArgs["Key_1_ID"] : string.Empty;
+            txtKey2.Text = dicArgs.ContainsKey("Key_2_ID") ? dicArgs["Key_2_ID"] : string.Empty;
+
+            _syncProcess = new SyncProcess(args);
 
             _logger.LogInformation("SyncForm initialized successfully");
 
@@ -81,7 +84,7 @@ namespace Source1Solutions.DocuSign.WinSync
             catch (Exception ex)
             {
                 _logger.LogError("Error loading form", ex);
-                MessageBox.Show($"Error loading form: {ex.Message}", "Error", 
+                MessageBox.Show($"Error loading form: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
@@ -242,8 +245,11 @@ namespace Source1Solutions.DocuSign.WinSync
                 string key1 = txtKey1.Text.Trim();
                 string key2 = txtKey2.Text.Trim();
 
-                _logger.LogDebug("Loading tracking data with filters - RequestFrom: {0}, Key_1: {1}, Key_2: {2}", 
+                _logger.LogDebug("Loading tracking data with filters - RequestFrom: {0}, Key_1: {1}, Key_2: {2}",
                     requestFrom, key1, key2);
+
+                // First, perform synchronization
+                _syncProcess.Sync();
 
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 using (SqlCommand command = new SqlCommand("dbo.GetDocuSignTrackingDetails_S1S", connection))
@@ -282,7 +288,7 @@ namespace Source1Solutions.DocuSign.WinSync
             catch (Exception ex)
             {
                 _logger.LogError("Error loading DocuSign tracking data", ex);
-                MessageBox.Show($"Error loading tracking data: {ex.Message}", "Database Error", 
+                MessageBox.Show($"Error loading tracking data: {ex.Message}", "Database Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
@@ -325,13 +331,13 @@ namespace Source1Solutions.DocuSign.WinSync
                 btnPrevious.Enabled = _currentPage > 1;
                 btnNext.Enabled = _currentPage < _totalPages;
 
-                _logger.LogDebug("Displaying page {0} of {1}, showing rows {2} to {3}", 
+                _logger.LogDebug("Displaying page {0} of {1}, showing rows {2} to {3}",
                     _currentPage, _totalPages, startIndex + 1, endIndex);
             }
             catch (Exception ex)
             {
                 _logger.LogError("Error displaying page", ex);
-                MessageBox.Show($"Error displaying page: {ex.Message}", "Error", 
+                MessageBox.Show($"Error displaying page: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
@@ -354,7 +360,7 @@ namespace Source1Solutions.DocuSign.WinSync
             catch (Exception ex)
             {
                 _logger.LogError("Error navigating to previous page", ex);
-                MessageBox.Show($"Error navigating to previous page: {ex.Message}", "Error", 
+                MessageBox.Show($"Error navigating to previous page: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
@@ -377,7 +383,7 @@ namespace Source1Solutions.DocuSign.WinSync
             catch (Exception ex)
             {
                 _logger.LogError("Error navigating to next page", ex);
-                MessageBox.Show($"Error navigating to next page: {ex.Message}", "Error", 
+                MessageBox.Show($"Error navigating to next page: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
@@ -393,13 +399,13 @@ namespace Source1Solutions.DocuSign.WinSync
                 // Reload the data
                 LoadDocuSignTrackingData();
                 _logger.LogInformation("Data refreshed successfully");
-                MessageBox.Show("Data refreshed successfully!", "Success", 
+                MessageBox.Show("Data refreshed successfully!", "Success",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
                 _logger.LogError("Error refreshing data", ex);
-                MessageBox.Show($"Error refreshing data: {ex.Message}", "Error", 
+                MessageBox.Show($"Error refreshing data: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 

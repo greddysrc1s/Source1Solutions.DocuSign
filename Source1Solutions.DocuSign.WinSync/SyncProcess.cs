@@ -173,8 +173,8 @@ namespace Source1Solutions.DocuSign.WinSync
                                                                     and Status = 'Pending'";
 
             var RequestFrom = dicArgs.ContainsKey("component") ? dicArgs["component"] : string.Empty;
-            var Key1 = dicArgs.ContainsKey("companyID") ? dicArgs["companyID"] : string.Empty;
-            var Key2 = dicArgs.ContainsKey("contractID") ? dicArgs["contractID"].Trim() : string.Empty;
+            var Key1 = dicArgs.ContainsKey("Key_1_ID") ? dicArgs["Key_1_ID"] : string.Empty;
+            var Key2 = dicArgs.ContainsKey("Key_2_ID") ? dicArgs["Key_2_ID"].Trim() : string.Empty;
 
             _logger.LogDebug("Query parameters - RequestFrom: {0}, Key_1: {1}, Key_2: {2}", RequestFrom, Key1, Key2);
             _logger.LogDebug("SQL Command: {0}", sqlCommand);

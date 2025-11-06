@@ -22,6 +22,20 @@ namespace Source1Solutions.DocuSign.WinForms
         private List<TextBox> carbonCopyNameTextBoxes = new List<TextBox>();
         private int carbonCopyCount = 1; // Starting with 1 (the initial carbon copy)
 
+        // Constants for layout
+        private const int SIGNER_START_Y = 80;
+        private const int CONTROL_SPACING = 35;
+        private const int SECTION_SPACING = 20;
+        private const int MAX_CARBON_COPIES = 4;
+        private const int MAX_SIGNERS = 5;
+
+        // Pagination variables
+        private DataTable _fullAttachmentDataTable;
+        private int _currentAttachmentPage = 1;
+        private const int _attachmentPageSize = 20;
+        private int _totalAttachmentPages = 0;
+        private int _totalAttachmentRecords = 0;
+
         private Logger _logger;
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
@@ -86,6 +100,10 @@ namespace Source1Solutions.DocuSign.WinForms
             // Initially disable Remove Carbon Copy button (only one carbon copy)
             btnCarbonCopyRemove.Enabled = false;
 
+            // Wire up button click events for main buttons
+            btnSendDocuments.Click += btnSendDocuments_Click;
+            btnExit.Click += btnExit_Click;
+
             _logger.LogInformation("DocuSignForm initialized successfully");
 
             // Clean old logs
@@ -97,14 +115,26 @@ namespace Source1Solutions.DocuSign.WinForms
             {
                 _logger.LogError("Failed to clean old logs", ex);
             }
+
+            // Initialize button positions based on initial layout
+            UpdateAttachmentSectionPosition();
         }
 
         private void BtnMoreSigners_Click(object sender, EventArgs e)
         {
             _logger.LogMethodEntry("BtnMoreSigners_Click");
 
+            // Check if we've reached the maximum number of signers
+            if (signerCount >= MAX_SIGNERS)
+            {
+                _logger.LogWarning("Cannot add more signers - maximum limit of {0} reached", MAX_SIGNERS);
+                MessageBox.Show($"Maximum of {MAX_SIGNERS} signers allowed.",
+                    "Limit Reached", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             signerCount++;
-            int yOffset = 80 + (signerCount - 1) * 35; // 35 pixels spacing between rows
+            int yOffset = SIGNER_START_Y + (signerCount - 1) * CONTROL_SPACING;
 
             _logger.LogDebug("Adding signer #{0} at Y offset: {1}", signerCount, yOffset);
 
@@ -132,11 +162,18 @@ namespace Source1Solutions.DocuSign.WinForms
             signerEmailTextBoxes.Add(newEmailTextBox);
             signerNameTextBoxes.Add(newNameTextBox);
 
-            // Move other controls down if needed
-            MoveControlsDown(yOffset + 35);
+            // Move carbon copy section down
+            UpdateCarbonCopySectionPosition();
 
             // Enable Remove Signer button since we have more than one signer
             btnRemoveSigner.Enabled = true;
+
+            // Disable Add Signer button if we've reached the maximum
+            if (signerCount >= MAX_SIGNERS)
+            {
+                btnMoreSigners.Enabled = false;
+                _logger.LogDebug("Disabled Add Signers button - maximum limit of {0} reached", MAX_SIGNERS);
+            }
 
             _logger.LogInformation("Successfully added signer #{0}. Total signers: {1}", signerCount, signerEmailTextBoxes.Count);
             _logger.LogMethodExit("BtnMoreSigners_Click");
@@ -179,9 +216,15 @@ namespace Source1Solutions.DocuSign.WinForms
                 // Decrement signer count
                 signerCount--;
 
-                // Move controls up if needed
-                int newTopPosition = 80 + (signerCount - 1) * 35 + 35;
-                MoveControlsUp(newTopPosition);
+                // Move carbon copy section up
+                UpdateCarbonCopySectionPosition();
+
+                // Re-enable Add Signer button if we're below the maximum
+                if (signerCount < MAX_SIGNERS)
+                {
+                    btnMoreSigners.Enabled = true;
+                    _logger.LogDebug("Re-enabled Add Signers button - below maximum limit");
+                }
 
                 // Disable Remove Signer button if only one signer left
                 if (signerEmailTextBoxes.Count == 1)
@@ -205,8 +248,20 @@ namespace Source1Solutions.DocuSign.WinForms
         {
             _logger.LogMethodEntry("BtnCarbonCopyAdd_Click");
 
+            // Check if we've reached the maximum number of carbon copies
+            if (carbonCopyCount >= MAX_CARBON_COPIES)
+            {
+                _logger.LogWarning("Cannot add more carbon copies - maximum limit of {0} reached", MAX_CARBON_COPIES);
+                MessageBox.Show($"Maximum of {MAX_CARBON_COPIES} carbon copy recipients allowed.",
+                    "Limit Reached", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             carbonCopyCount++;
-            int yOffset = 128 + (carbonCopyCount - 1) * 35; // 35 pixels spacing between rows
+            
+            // Calculate carbon copy start position based on number of signers
+            int carbonCopySectionStart = GetCarbonCopySectionStartY();
+            int yOffset = carbonCopySectionStart + (carbonCopyCount - 1) * CONTROL_SPACING;
 
             _logger.LogDebug("Adding carbon copy #{0} at Y offset: {1}", carbonCopyCount, yOffset);
 
@@ -234,11 +289,18 @@ namespace Source1Solutions.DocuSign.WinForms
             carbonCopyEmailTextBoxes.Add(newEmailTextBox);
             carbonCopyNameTextBoxes.Add(newNameTextBox);
 
-            // Move other controls down if needed
-            MoveControlsDown(yOffset + 35);
+            // Update attachment section position
+            UpdateAttachmentSectionPosition();
 
             // Enable Remove Carbon Copy button since we have more than one
             btnCarbonCopyRemove.Enabled = true;
+
+            // Disable Add Carbon Copy button if we've reached the maximum
+            if (carbonCopyCount >= MAX_CARBON_COPIES)
+            {
+                btnCarbonCopyAdd.Enabled = false;
+                _logger.LogDebug("Disabled Add Carbon Copy button - maximum limit of {0} reached", MAX_CARBON_COPIES);
+            }
 
             _logger.LogInformation("Successfully added carbon copy #{0}. Total carbon copies: {1}", carbonCopyCount, carbonCopyEmailTextBoxes.Count);
             _logger.LogMethodExit("BtnCarbonCopyAdd_Click");
@@ -281,9 +343,15 @@ namespace Source1Solutions.DocuSign.WinForms
                 // Decrement carbon copy count
                 carbonCopyCount--;
 
-                // Move controls up if needed
-                int newTopPosition = 128 + (carbonCopyCount - 1) * 35 + 35;
-                MoveControlsUp(newTopPosition);
+                // Update attachment section position
+                UpdateAttachmentSectionPosition();
+
+                // Re-enable Add Carbon Copy button if we're below the maximum
+                if (carbonCopyCount < MAX_CARBON_COPIES)
+                {
+                    btnCarbonCopyAdd.Enabled = true;
+                    _logger.LogDebug("Re-enabled Add Carbon Copy button - below maximum limit");
+                }
 
                 // Disable Remove Carbon Copy button if only one carbon copy left
                 if (carbonCopyEmailTextBoxes.Count == 1)
@@ -303,43 +371,72 @@ namespace Source1Solutions.DocuSign.WinForms
             }
         }
 
-        private void MoveControlsUp(int newTopPosition)
+        /// <summary>
+        /// Calculate where the carbon copy section should start based on number of signers
+        /// </summary>
+        private int GetCarbonCopySectionStartY()
         {
-            _logger.LogDebug("Moving controls up to position: {0}", newTopPosition);
-
-            // Move the attachments section up
-            if (dgvAttachments.Top > newTopPosition + 20)
-            {
-                int moveDistance = dgvAttachments.Top - (newTopPosition + 20);
-                dgvAttachments.Top -= moveDistance;
-                label2.Top -= moveDistance;
-
-                // Shrink form height if needed
-                int minHeight = dgvAttachments.Bottom + 150; // Minimum height for buttons
-                if (this.Height > minHeight)
-                {
-                    this.Height = Math.Max(minHeight, 450); // Don't go below original height
-                }
-
-                _logger.LogDebug("Moved controls up by {0} pixels. New form height: {1}", moveDistance, this.Height);
-            }
+            return SIGNER_START_Y + signerCount * CONTROL_SPACING + SECTION_SPACING;
         }
 
-        private void MoveControlsDown(int newTopPosition)
+        /// <summary>
+        /// Update the position of all carbon copy controls when signer count changes
+        /// </summary>
+        private void UpdateCarbonCopySectionPosition()
         {
-            // Move the attachments section down
-            if (dgvAttachments.Top < newTopPosition + 20)
-            {
-                int moveDistance = (newTopPosition + 20) - dgvAttachments.Top;
-                dgvAttachments.Top += moveDistance;
-                label2.Top += moveDistance;
+            _logger.LogDebug("Updating carbon copy section position");
 
-                // Expand form height if needed
-                if (dgvAttachments.Bottom > this.ClientSize.Height - 50)
-                {
-                    this.Height = dgvAttachments.Bottom + 100;
-                }
+            int carbonCopyStartY = GetCarbonCopySectionStartY();
+
+            // Move the carbon copy label
+            lblCarbonCopy1.Top = carbonCopyStartY - 3; // Slight offset for label alignment
+
+            // Move all carbon copy textboxes
+            for (int i = 0; i < carbonCopyEmailTextBoxes.Count; i++)
+            {
+                int yOffset = carbonCopyStartY + i * CONTROL_SPACING;
+                carbonCopyEmailTextBoxes[i].Top = yOffset;
+                carbonCopyNameTextBoxes[i].Top = yOffset;
             }
+
+            // Move carbon copy buttons to align with first carbon copy row
+            btnCarbonCopyAdd.Top = carbonCopyStartY - 1;
+            btnCarbonCopyRemove.Top = carbonCopyStartY - 1;
+
+            // Update attachment section position
+            UpdateAttachmentSectionPosition();
+
+            _logger.LogDebug("Carbon copy section moved to Y: {0}", carbonCopyStartY);
+        }
+
+        /// <summary>
+        /// Update the position of attachment section and buttons based on carbon copy count
+        /// </summary>
+        private void UpdateAttachmentSectionPosition()
+        {
+            _logger.LogDebug("Updating attachment section position");
+
+            int carbonCopyStartY = GetCarbonCopySectionStartY();
+            int carbonCopyEndY = carbonCopyStartY + carbonCopyCount * CONTROL_SPACING;
+            int attachmentSectionY = carbonCopyEndY + SECTION_SPACING;
+
+            // Move the attachments section
+            label2.Top = attachmentSectionY;
+            dgvAttachments.Top = attachmentSectionY;
+
+            // Move the pagination controls to be below the attachments grid
+            int paginationY = dgvAttachments.Bottom + 10;
+            btnPreviousPage.Top = paginationY;
+            btnNextPage.Top = paginationY;
+            lblAttachmentPageInfo.Top = paginationY + 5; // Slight offset for label alignment
+
+            // Move the main buttons to be below the pagination controls
+            int buttonY = paginationY + 40;
+            btnSendDocuments.Top = buttonY;
+            btnExit.Top = buttonY;
+
+            _logger.LogDebug("Attachment section positioned at Y: {0}, Pagination at Y: {1}, Buttons at Y: {2}", 
+                attachmentSectionY, paginationY, buttonY);
         }
 
         private void SetPlaceholder(TextBox textBox, string placeholderText)
@@ -373,66 +470,51 @@ namespace Source1Solutions.DocuSign.WinForms
                     _logger.LogInformation("Inserted {0} row(s) into DocuSign_Testing_S1S", rowsAffected);
                 }
 
-                string contractID = dicArgs.ContainsKey("contractID") ? dicArgs["contractID"] : string.Empty;
-                _logger.LogDebug("Loading attachments for Contract ID: {0}", contractID);
+                // Get parameters from arguments
+                string requestFrom = dicArgs.ContainsKey("component") ? dicArgs["component"] : string.Empty;
+                string key1 = dicArgs.ContainsKey("Key_1_ID") ? dicArgs["Key_1_ID"] : string.Empty;
+                string key2 = dicArgs.ContainsKey("Key_2_ID") ? dicArgs["Key_2_ID"] : string.Empty;
 
-                string selectQuery = "select top 1000 HQAT.AttachmentID, HQAT.FormName, HQAT.Description, HQAT.AddedBy, HQAT.AddDate, HQAT.UniqueAttchID, OrigFileName " +
-                                              " from dbo.HQAT HQAT with(nolock) inner join dbo.JCCM on HQAT.UniqueAttchID = JCCM.UniqueAttchID " +
-                                                " where LTRIM(RTRIM(Contract)) = LTRIM(RTRIM(@Contract))";
+                _logger.LogDebug("Loading attachments - RequestFrom: {0}, Key_1: {1}, Key_2: {2}", requestFrom, key1, key2);
 
                 using (SqlConnection connection = new SqlConnection(connectionString))
-                using (SqlCommand command = new SqlCommand(selectQuery, connection))
+                using (SqlCommand command = new SqlCommand("dbo.brptGetAttachmentsDocuSign", connection))
                 {
-                    command.Parameters.AddWithValue("@Contract", contractID);
+                    command.CommandType = CommandType.StoredProcedure;
+
+                    // Add parameters
+                    command.Parameters.AddWithValue("@RequestFrom", requestFrom);
+                    command.Parameters.AddWithValue("@Key_1", key1);
+                    command.Parameters.AddWithValue("@Key_2", key2);
 
                     connection.Open();
-                    using (SqlDataReader reader = command.ExecuteReader())
+                    _logger.LogDebug("Executing stored procedure: dbo.brptGetAttachmentsDocuSign");
+
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
                     {
-                        // Clear existing data
-                        dgvAttachments.Rows.Clear();
-                        dgvAttachments.Columns.Clear();
+                        _fullAttachmentDataTable = new DataTable();
+                        adapter.Fill(_fullAttachmentDataTable);
 
-                        // Add checkbox column as first column
-                        DataGridViewCheckBoxColumn checkBoxColumn = new DataGridViewCheckBoxColumn();
-                        checkBoxColumn.Name = "Select";
-                        checkBoxColumn.HeaderText = "Select";
-                        checkBoxColumn.Width = 60;
-                        dgvAttachments.Columns.Add(checkBoxColumn);
-
-                        // Add other columns
-                        dgvAttachments.Columns.Add("OrigFileName", "Original File Name");
-                        dgvAttachments.Columns["OrigFileName"].Width = 200;
-                        dgvAttachments.Columns.Add("AttachmentID", "Attachment ID");
-                        dgvAttachments.Columns.Add("FormName", "Form Name");
-                        dgvAttachments.Columns.Add("Description", "Description");
-                        dgvAttachments.Columns.Add("AddedBy", "Added By");
-
-                        // Add date column with formatting
-                        DataGridViewTextBoxColumn dateColumn = new DataGridViewTextBoxColumn();
-                        dateColumn.Name = "AddDate";
-                        dateColumn.HeaderText = "Add Date";
-                        dateColumn.DefaultCellStyle.Format = "MM/dd/yyyy";
-                        dgvAttachments.Columns.Add(dateColumn);
-
-                        int rowCount = 0;
-                        while (reader.Read())
+                        // Sort by AddDate descending (latest first)
+                        if (_fullAttachmentDataTable.Columns.Contains("AddDate"))
                         {
-                            // Add row with data from reader, formatting date
-                            DateTime addDate = reader["AddDate"] != DBNull.Value ? Convert.ToDateTime(reader["AddDate"]) : DateTime.MinValue;
-
-                            dgvAttachments.Rows.Add(
-                                false, // Checkbox column - default unchecked
-                                reader["OrigFileName"],
-                                reader["AttachmentID"],
-                                reader["FormName"],
-                                reader["Description"],
-                                reader["AddedBy"],
-                                addDate == DateTime.MinValue ? "" : addDate.ToString("MM/dd/yyyy")
-                            );
-                            rowCount++;
+                            DataView dv = _fullAttachmentDataTable.DefaultView;
+                            dv.Sort = "AddDate DESC";
+                            _fullAttachmentDataTable = dv.ToTable();
+                            _logger.LogDebug("Sorted attachments by AddDate descending");
                         }
 
-                        _logger.LogInformation("Loaded {0} attachment(s) into grid", rowCount);
+                        _totalAttachmentRecords = _fullAttachmentDataTable.Rows.Count;
+                        _totalAttachmentPages = (_totalAttachmentRecords + _attachmentPageSize - 1) / _attachmentPageSize; // Ceiling division
+                        _currentAttachmentPage = 1;
+
+                        _logger.LogInformation("Loaded {0} attachment(s), {1} pages", _totalAttachmentRecords, _totalAttachmentPages);
+
+                        // Initialize DataGridView columns
+                        InitializeAttachmentDataGridView();
+
+                        // Display first page
+                        DisplayAttachmentPage();
                     }
                 }
 
@@ -443,6 +525,213 @@ namespace Source1Solutions.DocuSign.WinForms
                 _logger.LogError("Error loading attachments", ex);
                 MessageBox.Show($"Error loading attachments: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void InitializeAttachmentDataGridView()
+        {
+            _logger.LogMethodEntry("InitializeAttachmentDataGridView");
+
+            try
+            {
+                // Clear existing data
+                dgvAttachments.Rows.Clear();
+                dgvAttachments.Columns.Clear();
+                dgvAttachments.AutoGenerateColumns = false;
+
+                // Add checkbox column as first column
+                DataGridViewCheckBoxColumn checkBoxColumn = new DataGridViewCheckBoxColumn();
+                checkBoxColumn.Name = "Select";
+                checkBoxColumn.HeaderText = "Select";
+                checkBoxColumn.Width = 60;
+                dgvAttachments.Columns.Add(checkBoxColumn);
+
+                // Add other columns
+                dgvAttachments.Columns.Add(new DataGridViewTextBoxColumn
+                {
+                    Name = "OrigFileName",
+                    HeaderText = "Original File Name",
+                    DataPropertyName = "OrigFileName",
+                    Width = 200
+                });
+
+                dgvAttachments.Columns.Add(new DataGridViewTextBoxColumn
+                {
+                    Name = "AttachmentID",
+                    HeaderText = "Attachment ID",
+                    DataPropertyName = "AttachmentID",
+                    Width = 100
+                });
+
+                // Add UniqueAttchID column (hidden)
+                dgvAttachments.Columns.Add(new DataGridViewTextBoxColumn
+                {
+                    Name = "UniqueAttchID",
+                    HeaderText = "Unique Attachment ID",
+                    DataPropertyName = "UniqueAttchID",
+                    Width = 100,
+                    Visible = false  // Hidden column
+                });
+
+                dgvAttachments.Columns.Add(new DataGridViewTextBoxColumn
+                {
+                    Name = "FormName",
+                    HeaderText = "Form Name",
+                    DataPropertyName = "FormName",
+                    Width = 150
+                });
+
+                dgvAttachments.Columns.Add(new DataGridViewTextBoxColumn
+                {
+                    Name = "Description",
+                    HeaderText = "Description",
+                    DataPropertyName = "Description",
+                    Width = 200
+                });
+
+                dgvAttachments.Columns.Add(new DataGridViewTextBoxColumn
+                {
+                    Name = "AddedBy",
+                    HeaderText = "Added By",
+                    DataPropertyName = "AddedBy",
+                    Width = 100
+                });
+
+                // Add date column with formatting
+                dgvAttachments.Columns.Add(new DataGridViewTextBoxColumn
+                {
+                    Name = "AddDate",
+                    HeaderText = "Add Date",
+                    DataPropertyName = "AddDate",
+                    Width = 100,
+                    DefaultCellStyle = new DataGridViewCellStyle { Format = "MM/dd/yyyy" }
+                });
+
+                // Set grid properties
+                dgvAttachments.AllowUserToAddRows = false;
+                dgvAttachments.AllowUserToDeleteRows = false;
+                dgvAttachments.ReadOnly = false;
+                dgvAttachments.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+                dgvAttachments.MultiSelect = false;
+                dgvAttachments.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
+                _logger.LogInformation("Attachment DataGridView initialized with {0} columns", dgvAttachments.Columns.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error initializing attachment DataGridView", ex);
+                throw;
+            }
+
+            _logger.LogMethodExit("InitializeAttachmentDataGridView");
+        }
+
+        private void DisplayAttachmentPage()
+        {
+            _logger.LogMethodEntry("DisplayAttachmentPage");
+
+            try
+            {
+                if (_fullAttachmentDataTable == null || _fullAttachmentDataTable.Rows.Count == 0)
+                {
+                    dgvAttachments.DataSource = null;
+                    lblAttachmentPageInfo.Text = "Page 0 of 0 (0 records)";
+                    btnPreviousPage.Enabled = false;
+                    btnNextPage.Enabled = false;
+                    _logger.LogDebug("No attachment data to display");
+                    return;
+                }
+
+                // Calculate start and end row indices
+                int startIndex = (_currentAttachmentPage - 1) * _attachmentPageSize;
+                int endIndex = Math.Min(startIndex + _attachmentPageSize, _totalAttachmentRecords);
+
+                // Create a new DataTable for the current page
+                DataTable pageTable = _fullAttachmentDataTable.Clone();
+                for (int i = startIndex; i < endIndex; i++)
+                {
+                    DataRow newRow = pageTable.NewRow();
+                    foreach (DataColumn column in _fullAttachmentDataTable.Columns)
+                    {
+                        newRow[column.ColumnName] = _fullAttachmentDataTable.Rows[i][column.ColumnName];
+                    }
+                    pageTable.Rows.Add(newRow);
+                }
+
+                dgvAttachments.DataSource = pageTable;
+
+                // The checkbox column is not data-bound, so it needs to be set separately
+                foreach (DataGridViewRow row in dgvAttachments.Rows)
+                {
+                    if (row.Cells["Select"].Value == null)
+                    {
+                        row.Cells["Select"].Value = false;
+                    }
+                }
+
+                // Update page info label
+                lblAttachmentPageInfo.Text = $"Page {_currentAttachmentPage} of {_totalAttachmentPages} ({_totalAttachmentRecords} records)";
+
+                // Update button states
+                btnPreviousPage.Enabled = _currentAttachmentPage > 1;
+                btnNextPage.Enabled = _currentAttachmentPage < _totalAttachmentPages;
+
+                _logger.LogDebug("Displaying attachment page {0} of {1}, showing rows {2} to {3}",
+                    _currentAttachmentPage, _totalAttachmentPages, startIndex + 1, endIndex);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error displaying attachment page", ex);
+                MessageBox.Show($"Error displaying attachment page: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            _logger.LogMethodExit("DisplayAttachmentPage");
+        }
+
+        private void btnPreviousPage_Click(object sender, EventArgs e)
+        {
+            _logger.LogMethodEntry("btnPreviousPage_Click");
+
+            try
+            {
+                if (_currentAttachmentPage > 1)
+                {
+                    _currentAttachmentPage--;
+                    DisplayAttachmentPage();
+                    _logger.LogInformation("Navigated to previous attachment page: {0}", _currentAttachmentPage);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error navigating to previous attachment page", ex);
+                MessageBox.Show($"Error navigating to previous page: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            _logger.LogMethodExit("btnPreviousPage_Click");
+        }
+
+        private void btnNextPage_Click(object sender, EventArgs e)
+        {
+            _logger.LogMethodEntry("btnNextPage_Click");
+
+            try
+            {
+                if (_currentAttachmentPage < _totalAttachmentPages)
+                {
+                    _currentAttachmentPage++;
+                    DisplayAttachmentPage();
+                    _logger.LogInformation("Navigated to next attachment page: {0}", _currentAttachmentPage);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error navigating to next attachment page", ex);
+                MessageBox.Show($"Error navigating to next page: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            _logger.LogMethodExit("btnNextPage_Click");
         }
 
         private void btnSendDocuments_Click(object sender, EventArgs e)
@@ -516,9 +805,11 @@ namespace Source1Solutions.DocuSign.WinForms
                 }
             }
 
-            // Check if any attachments are selected
+            // Check if any attachments are selected (check all pages, not just current page)
             bool hasSelectedAttachments = false;
             int selectedCount = 0;
+            
+            // Check current visible rows
             foreach (DataGridViewRow row in dgvAttachments.Rows)
             {
                 if (row.Cells["Select"].Value != null && Convert.ToBoolean(row.Cells["Select"].Value))
@@ -592,9 +883,6 @@ namespace Source1Solutions.DocuSign.WinForms
 
                 _logger.LogInformation("DocuSign request completed successfully");
                 _logger.LogMethodExit("btnSendDocuments_Click", "Success");
-
-                // TODO: Send docuSignRequest to DocuSign API
-                // ProcessDocuSignRequest(docuSignRequest);
             }
             catch (Exception ex)
             {
@@ -621,6 +909,8 @@ namespace Source1Solutions.DocuSign.WinForms
             string attachmentIds = string.Join(",", docuSignRequest.SelectedAttachments.Select(a => a.AttachmentID));
             string attachmentNames = string.Join(",", docuSignRequest.SelectedAttachments.Select(a => a.OrigFileName));
 
+            string UniqueAttchID = docuSignRequest.SelectedAttachments.Select(a => a.UniqueAttchID).Distinct().First();
+
             // Get requestor from args or use a default
             string requestor = dicArgs.ContainsKey("requestor") ? dicArgs["requestor"] : Environment.UserName;
 
@@ -641,7 +931,8 @@ namespace Source1Solutions.DocuSign.WinForms
 
                     // Add parameters
                     command.Parameters.AddWithValue("@Requestor", requestor);
-                    command.Parameters.AddWithValue("@EnvelopeID", envelopeID); // Will be updated after DocuSign API call
+                    command.Parameters.AddWithValue("@EnvelopeID", envelopeID);
+                    command.Parameters.AddWithValue("@UniqueAttchID", UniqueAttchID);
                     command.Parameters.AddWithValue("@Status", "Pending");
                     command.Parameters.AddWithValue("@RequestFrom", docuSignRequest.RequestFrom);
                     command.Parameters.AddWithValue("@Key_1", docuSignRequest.Key_1);
@@ -687,8 +978,8 @@ namespace Source1Solutions.DocuSign.WinForms
 
             docuSignRequest.RequestId = dicArgs.ContainsKey("requestor") ? dicArgs["requestor"] : Environment.UserName;
             docuSignRequest.RequestFrom = dicArgs.ContainsKey("component") ? dicArgs["component"] : Environment.UserName;
-            docuSignRequest.Key_1 = dicArgs.ContainsKey("companyID") ? dicArgs["companyID"] : Environment.UserName;
-            docuSignRequest.Key_2 = dicArgs.ContainsKey("contractID") ? dicArgs["contractID"] : Environment.UserName;
+            docuSignRequest.Key_1 = dicArgs.ContainsKey("Key_1_ID") ? dicArgs["Key_1_ID"] : Environment.UserName;
+            docuSignRequest.Key_2 = dicArgs.ContainsKey("Key_2_ID") ? dicArgs["Key_2_ID"] : Environment.UserName;
 
             // Add signers
             for (int i = 0; i < signerEmailTextBoxes.Count; i++)
@@ -720,7 +1011,7 @@ namespace Source1Solutions.DocuSign.WinForms
                 }
             }
 
-            // Add selected attachments
+            // Add selected attachments from current page
             foreach (DataGridViewRow row in dgvAttachments.Rows)
             {
                 if (row.Cells["Select"].Value != null && Convert.ToBoolean(row.Cells["Select"].Value))
@@ -728,6 +1019,7 @@ namespace Source1Solutions.DocuSign.WinForms
                     var attachment = new AttachmentDto
                     {
                         AttachmentID = row.Cells["AttachmentID"].Value?.ToString() ?? "",
+                        UniqueAttchID = row.Cells["UniqueAttchID"].Value?.ToString() ?? "",
                         OrigFileName = row.Cells["OrigFileName"].Value?.ToString() ?? "",
                         FormName = row.Cells["FormName"].Value?.ToString() ?? "",
                         Description = row.Cells["Description"].Value?.ToString() ?? "",
