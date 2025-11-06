@@ -133,6 +133,9 @@ namespace Source1Solutions.DocuSign.WinSync
                             }
                             else
                             {
+                                //update status in tracking table if not completed with envelope status
+                                UpdateDocuSignTrackerByEnvelopeID(envelopeID, envelope.Status);
+
                                 _logger.LogInformation("Envelope not ready for download. Status: {0}, FileCount: {1}",
                                     envelope.Status, fileNames?.Count ?? 0);
                             }
@@ -170,7 +173,7 @@ namespace Source1Solutions.DocuSign.WinSync
             string sqlCommand = @"select EnvolpeID from udtDocuSignTracking_S1S where RequestFrom = @RequestFrom
                                                                     and LTRIM(RTRIM(Key_1)) = LTRIM(RTRIM(@Key_1)) 
                                                                     and LTRIM(RTRIM(Key_2)) = LTRIM(RTRIM(@Key_2))
-                                                                    and Status = 'Pending'";
+                                                                    and lower(Status) <> 'completed'";
 
             var RequestFrom = dicArgs.ContainsKey("component") ? dicArgs["component"] : string.Empty;
             var Key1 = dicArgs.ContainsKey("Key_1_ID") ? dicArgs["Key_1_ID"] : string.Empty;
@@ -294,6 +297,39 @@ namespace Source1Solutions.DocuSign.WinSync
             }
 
             return docuSignID;
+        }
+
+        private void UpdateDocuSignTrackerByEnvelopeID(string envelopeID, string status)
+        {
+            _logger.LogMethodEntry("UpdateDocuSignTrackerByEnvelopeID", envelopeID);
+
+            string sqlCommand = @"UPDATE udtDocuSignTracking_S1S
+                                  SET Status = @Status
+                                  WHERE EnvolpeID = @EnvelopeID
+                                    AND lower(Status) <> 'completed'";
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(AppSettings.GetConnectionString()))
+                using (SqlCommand command = new SqlCommand(sqlCommand, connection))
+                {
+                    command.Parameters.AddWithValue("@EnvelopeID", envelopeID);
+                    command.Parameters.AddWithValue("@Status", status);
+                    connection.Open();
+
+                    _logger.LogDebug("Executing query: {0}", sqlCommand);
+
+                    var results = command.ExecuteNonQuery();
+
+                    _logger.LogInformation("Updated the status as : {0} for envelope: {1}", status, envelopeID);
+                }
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error retrieving DocuSignID for envelope ID: {envelopeID}", ex);
+                throw;
+            }
         }
 
         private void SavePdfToDatabase(int docuSignID, string envelopeID, string fileName, byte[] pdfBytes, string status)

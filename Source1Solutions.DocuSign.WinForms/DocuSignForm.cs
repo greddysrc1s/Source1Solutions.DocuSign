@@ -100,9 +100,9 @@ namespace Source1Solutions.DocuSign.WinForms
             // Initially disable Remove Carbon Copy button (only one carbon copy)
             btnCarbonCopyRemove.Enabled = false;
 
-            // Wire up button click events for main buttons
-            btnSendDocuments.Click += btnSendDocuments_Click;
-            btnExit.Click += btnExit_Click;
+            // NOTE: btnSendDocuments and btnExit event handlers are already 
+            // registered in the Designer.cs file, so we don't register them here
+            // to avoid double-firing the events
 
             _logger.LogInformation("DocuSignForm initialized successfully");
 
@@ -258,7 +258,7 @@ namespace Source1Solutions.DocuSign.WinForms
             }
 
             carbonCopyCount++;
-            
+
             // Calculate carbon copy start position based on number of signers
             int carbonCopySectionStart = GetCarbonCopySectionStartY();
             int yOffset = carbonCopySectionStart + (carbonCopyCount - 1) * CONTROL_SPACING;
@@ -435,7 +435,7 @@ namespace Source1Solutions.DocuSign.WinForms
             btnSendDocuments.Top = buttonY;
             btnExit.Top = buttonY;
 
-            _logger.LogDebug("Attachment section positioned at Y: {0}, Pagination at Y: {1}, Buttons at Y: {2}", 
+            _logger.LogDebug("Attachment section positioned at Y: {0}, Pagination at Y: {1}, Buttons at Y: {2}",
                 attachmentSectionY, paginationY, buttonY);
         }
 
@@ -551,7 +551,7 @@ namespace Source1Solutions.DocuSign.WinForms
                     Name = "OrigFileName",
                     HeaderText = "Original File Name",
                     DataPropertyName = "OrigFileName",
-                    Width = 200
+                    Width = 225
                 });
 
                 dgvAttachments.Columns.Add(new DataGridViewTextBoxColumn
@@ -577,7 +577,8 @@ namespace Source1Solutions.DocuSign.WinForms
                     Name = "FormName",
                     HeaderText = "Form Name",
                     DataPropertyName = "FormName",
-                    Width = 150
+                    Width = 150,
+                    Visible = false  // Hidden column
                 });
 
                 dgvAttachments.Columns.Add(new DataGridViewTextBoxColumn
@@ -585,7 +586,7 @@ namespace Source1Solutions.DocuSign.WinForms
                     Name = "Description",
                     HeaderText = "Description",
                     DataPropertyName = "Description",
-                    Width = 200
+                    Width = 250
                 });
 
                 dgvAttachments.Columns.Add(new DataGridViewTextBoxColumn
@@ -593,7 +594,7 @@ namespace Source1Solutions.DocuSign.WinForms
                     Name = "AddedBy",
                     HeaderText = "Added By",
                     DataPropertyName = "AddedBy",
-                    Width = 100
+                    Width = 150
                 });
 
                 // Add date column with formatting
@@ -602,8 +603,8 @@ namespace Source1Solutions.DocuSign.WinForms
                     Name = "AddDate",
                     HeaderText = "Add Date",
                     DataPropertyName = "AddDate",
-                    Width = 100,
-                    DefaultCellStyle = new DataGridViewCellStyle { Format = "MM/dd/yyyy" }
+                    Width = 200,
+                    DefaultCellStyle = new DataGridViewCellStyle { Format = "MM/dd/yyyy hh:mm:ss tt" }
                 });
 
                 // Set grid properties
@@ -738,115 +739,123 @@ namespace Source1Solutions.DocuSign.WinForms
         {
             _logger.LogMethodEntry("btnSendDocuments_Click");
 
-            // Validate all signer fields
-            List<string> validationErrors = new List<string>();
+            // Disable the button immediately to prevent multiple clicks
+            btnSendDocuments.Enabled = false;
+            string originalButtonText = btnSendDocuments.Text;
+            btnSendDocuments.Text = "Processing...";
+            this.Cursor = Cursors.WaitCursor;
 
-            _logger.LogDebug("Validating {0} signer(s)", signerEmailTextBoxes.Count);
-
-            for (int i = 0; i < signerEmailTextBoxes.Count; i++)
-            {
-                TextBox emailTextBox = signerEmailTextBoxes[i];
-                TextBox nameTextBox = signerNameTextBoxes[i];
-                int signerNumber = i + 1;
-
-                // Check if email is empty or invalid
-                string email = emailTextBox.Text.Trim();
-                if (string.IsNullOrEmpty(email))
-                {
-                    validationErrors.Add($"Signer {signerNumber} email is empty");
-                    _logger.LogWarning("Validation failed: Signer {0} email is empty", signerNumber);
-                }
-                else if (!IsValidEmail(email))
-                {
-                    validationErrors.Add($"Signer {signerNumber} email is not valid");
-                    _logger.LogWarning("Validation failed: Signer {0} email '{1}' is not valid", signerNumber, email);
-                }
-
-                // Check if name is empty
-                string name = nameTextBox.Text.Trim();
-                if (string.IsNullOrEmpty(name))
-                {
-                    validationErrors.Add($"Signer {signerNumber} name is empty");
-                    _logger.LogWarning("Validation failed: Signer {0} name is empty", signerNumber);
-                }
-            }
-
-            // Validate carbon copy fields (optional - only if filled)
-            _logger.LogDebug("Validating {0} carbon copy recipient(s)", carbonCopyEmailTextBoxes.Count);
-
-            for (int i = 0; i < carbonCopyEmailTextBoxes.Count; i++)
-            {
-                TextBox emailTextBox = carbonCopyEmailTextBoxes[i];
-                TextBox nameTextBox = carbonCopyNameTextBoxes[i];
-                int ccNumber = i + 1;
-
-                string email = emailTextBox.Text.Trim();
-                string name = nameTextBox.Text.Trim();
-
-                // If either field is filled, both must be valid
-                if (!string.IsNullOrEmpty(email) || !string.IsNullOrEmpty(name))
-                {
-                    if (string.IsNullOrEmpty(email))
-                    {
-                        validationErrors.Add($"Carbon Copy {ccNumber} email is empty");
-                        _logger.LogWarning("Validation failed: Carbon Copy {0} email is empty", ccNumber);
-                    }
-                    else if (!IsValidEmail(email))
-                    {
-                        validationErrors.Add($"Carbon Copy {ccNumber} email is not valid");
-                        _logger.LogWarning("Validation failed: Carbon Copy {0} email '{1}' is not valid", ccNumber, email);
-                    }
-
-                    if (string.IsNullOrEmpty(name))
-                    {
-                        validationErrors.Add($"Carbon Copy {ccNumber} name is empty");
-                        _logger.LogWarning("Validation failed: Carbon Copy {0} name is empty", ccNumber);
-                    }
-                }
-            }
-
-            // Check if any attachments are selected (check all pages, not just current page)
-            bool hasSelectedAttachments = false;
-            int selectedCount = 0;
-            
-            // Check current visible rows
-            foreach (DataGridViewRow row in dgvAttachments.Rows)
-            {
-                if (row.Cells["Select"].Value != null && Convert.ToBoolean(row.Cells["Select"].Value))
-                {
-                    hasSelectedAttachments = true;
-                    selectedCount++;
-                }
-            }
-
-            _logger.LogDebug("Selected {0} attachment(s)", selectedCount);
-
-            if (!hasSelectedAttachments)
-            {
-                validationErrors.Add("Please select at least one attachment to send");
-                _logger.LogWarning("Validation failed: No attachments selected");
-            }
-
-            // If there are validation errors, show message box and return
-            if (validationErrors.Count > 0)
-            {
-                string errorMessage = string.Join("\n", validationErrors);
-                _logger.LogError("Validation failed with {0} error(s): {1}", validationErrors.Count, errorMessage);
-                MessageBox.Show(errorMessage, "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                _logger.LogMethodExit("btnSendDocuments_Click", "Validation Failed");
-                return;
-            }
-
-            _logger.LogInformation("Validation passed successfully");
-
-            // Create DTO object with validated data
-            DocuSignRequestDto docuSignRequest = CreateDocuSignRequestDto();
-
-            _logger.LogInformation("Created DocuSignRequestDto with {0} signer(s), {1} carbon copy recipient(s), and {2} attachment(s)",
-                docuSignRequest.Signers.Count, docuSignRequest.CarbonCopies.Count, docuSignRequest.SelectedAttachments.Count);
+            _logger.LogDebug("Send Documents button disabled during processing");
 
             try
             {
+                // Validate all signer fields
+                List<string> validationErrors = new List<string>();
+
+                _logger.LogDebug("Validating {0} signer(s)", signerEmailTextBoxes.Count);
+
+                for (int i = 0; i < signerEmailTextBoxes.Count; i++)
+                {
+                    TextBox emailTextBox = signerEmailTextBoxes[i];
+                    TextBox nameTextBox = signerNameTextBoxes[i];
+                    int signerNumber = i + 1;
+
+                    // Check if email is empty or invalid
+                    string email = emailTextBox.Text.Trim();
+                    if (string.IsNullOrEmpty(email))
+                    {
+                        validationErrors.Add($"Signer {signerNumber} email is empty");
+                        _logger.LogWarning("Validation failed: Signer {0} email is empty", signerNumber);
+                    }
+                    else if (!IsValidEmail(email))
+                    {
+                        validationErrors.Add($"Signer {signerNumber} email is not valid");
+                        _logger.LogWarning("Validation failed: Signer {0} email '{1}' is not valid", signerNumber, email);
+                    }
+
+                    // Check if name is empty
+                    string name = nameTextBox.Text.Trim();
+                    if (string.IsNullOrEmpty(name))
+                    {
+                        validationErrors.Add($"Signer {signerNumber} name is empty");
+                        _logger.LogWarning("Validation failed: Signer {0} name is empty", signerNumber);
+                    }
+                }
+
+                // Validate carbon copy fields (optional - only if filled)
+                _logger.LogDebug("Validating {0} carbon copy recipient(s)", carbonCopyEmailTextBoxes.Count);
+
+                for (int i = 0; i < carbonCopyEmailTextBoxes.Count; i++)
+                {
+                    TextBox emailTextBox = carbonCopyEmailTextBoxes[i];
+                    TextBox nameTextBox = carbonCopyNameTextBoxes[i];
+                    int ccNumber = i + 1;
+
+                    string email = emailTextBox.Text.Trim();
+                    string name = nameTextBox.Text.Trim();
+
+                    // If either field is filled, both must be valid
+                    if (!string.IsNullOrEmpty(email) || !string.IsNullOrEmpty(name))
+                    {
+                        if (string.IsNullOrEmpty(email))
+                        {
+                            validationErrors.Add($"Carbon Copy {ccNumber} email is empty");
+                            _logger.LogWarning("Validation failed: Carbon Copy {0} email is empty", ccNumber);
+                        }
+                        else if (!IsValidEmail(email))
+                        {
+                            validationErrors.Add($"Carbon Copy {ccNumber} email is not valid");
+                            _logger.LogWarning("Validation failed: Carbon Copy {0} email '{1}' is not valid", ccNumber, email);
+                        }
+
+                        if (string.IsNullOrEmpty(name))
+                        {
+                            validationErrors.Add($"Carbon Copy {ccNumber} name is empty");
+                            _logger.LogWarning("Validation failed: Carbon Copy {0} name is empty", ccNumber);
+                        }
+                    }
+                }
+
+                // Check if any attachments are selected (check all pages, not just current page)
+                bool hasSelectedAttachments = false;
+                int selectedCount = 0;
+
+                // Check current visible rows
+                foreach (DataGridViewRow row in dgvAttachments.Rows)
+                {
+                    if (row.Cells["Select"].Value != null && Convert.ToBoolean(row.Cells["Select"].Value))
+                    {
+                        hasSelectedAttachments = true;
+                        selectedCount++;
+                    }
+                }
+
+                _logger.LogDebug("Selected {0} attachment(s)", selectedCount);
+
+                if (!hasSelectedAttachments)
+                {
+                    validationErrors.Add("Please select at least one attachment to send");
+                    _logger.LogWarning("Validation failed: No attachments selected");
+                }
+
+                // If there are validation errors, show message box and return
+                if (validationErrors.Count > 0)
+                {
+                    string errorMessage = string.Join("\n", validationErrors);
+                    _logger.LogError("Validation failed with {0} error(s): {1}", validationErrors.Count, errorMessage);
+                    MessageBox.Show(errorMessage, "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    _logger.LogMethodExit("btnSendDocuments_Click", "Validation Failed");
+                    return;
+                }
+
+                _logger.LogInformation("Validation passed successfully");
+
+                // Create DTO object with validated data
+                DocuSignRequestDto docuSignRequest = CreateDocuSignRequestDto();
+
+                _logger.LogInformation("Created DocuSignRequestDto with {0} signer(s), {1} carbon copy recipient(s), and {2} attachment(s)",
+                    docuSignRequest.Signers.Count, docuSignRequest.CarbonCopies.Count, docuSignRequest.SelectedAttachments.Count);
+
                 var userInputs = new UserInputs()
                 {
                     ConnectionString = AppSettings.GetConnectionString(),
@@ -890,6 +899,14 @@ namespace Source1Solutions.DocuSign.WinForms
                 MessageBox.Show($"Error saving DocuSign request: {ex.Message}", "Database Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 _logger.LogMethodExit("btnSendDocuments_Click", "Error");
+            }
+            finally
+            {
+                // Re-enable the button and restore UI state
+                btnSendDocuments.Enabled = true;
+                btnSendDocuments.Text = originalButtonText;
+                this.Cursor = Cursors.Default;
+                _logger.LogDebug("Send Documents button re-enabled after processing");
             }
         }
 

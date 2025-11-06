@@ -73,8 +73,6 @@ namespace DocuSign.Requests
 
                 int docIndex = 1;
 
-                List<SignHere> SignHereTabs = new List<SignHere>();
-
 
                 foreach (var doc in selectedAttachments)
                 {
@@ -97,30 +95,50 @@ namespace DocuSign.Requests
                     };
                     documents.Add(document);
 
-                    var signHere = new SignHere
-                    {
-                        DocumentId = (docIndex++).ToString(),
-                        PageNumber = "1",  //TODO : Make dynamic based on document length
-                        XPosition = "300",
-                        YPosition = "630"
-                    };
-
-                    SignHereTabs.Add(signHere);
+                    docIndex++;
 
                     _logger.LogDebug("Added document: {0} (ID: {1})", doc.OrigFileName, doc.AttachmentID);
                 }
 
-                Tabs signerTabs = new Tabs
-                {
-                    SignHereTabs = SignHereTabs,
-                };
-
-
+                // Create signature tabs for each signer with dynamic positioning
                 List<Signer> dsSigners = new List<Signer>();
+
+                const int SIGNATURE_START_X = 300;  // Starting X position
+                const int SIGNATURE_START_Y = 600;  // Starting Y position for first signer
+                const int SIGNATURE_SPACING = 75;   // Vertical spacing between signers
+
+                _logger.LogDebug("Creating {0} signer(s) with signature spacing of {1} pixels", signers.Count, SIGNATURE_SPACING);
 
                 for (int i = 0; i < signers.Count; i++)
                 {
-                    
+                    // Calculate X position for this signer (75 pixels apart)
+                    int xPosition = SIGNATURE_START_X - (i * SIGNATURE_SPACING);
+                    int yPosition = SIGNATURE_START_Y;
+
+                    _logger.LogDebug("Signer {0} ({1}) will have signature at position X:{2}, Y:{3}",
+                        i + 1, signers[i].Name, xPosition, yPosition);
+
+                    // Create signature tabs for this specific signer on all documents
+                    List<SignHere> signerSignHereTabs = new List<SignHere>();
+
+                    for (int docIdx = 1; docIdx <= documents.Count; docIdx++)
+                    {
+                        var signHere = new SignHere
+                        {
+                            DocumentId = docIdx.ToString(),
+                            PageNumber = "1",
+                            XPosition = xPosition.ToString(),
+                            YPosition = yPosition.ToString()
+                        };
+
+                        signerSignHereTabs.Add(signHere);
+                    }
+
+                    Tabs signerTabs = new Tabs
+                    {
+                        SignHereTabs = signerSignHereTabs,
+                    };
+
                     Signer dsSigner = new Signer
                     {
                         Email = signers[i].Email,
@@ -131,7 +149,7 @@ namespace DocuSign.Requests
                     };
 
                     dsSigners.Add(dsSigner);
-                    _logger.LogDebug("Added signer: {0} ({1})", signers[i].Name, signers[i].Email);
+                    _logger.LogDebug("Added signer: {0} ({1}) with signature position Y:{2}", signers[i].Name, signers[i].Email, xPosition);
                 }
 
                 // Add carbon copy recipients

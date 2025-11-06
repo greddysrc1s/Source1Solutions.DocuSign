@@ -52,7 +52,7 @@
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new Point(81, 178);
+            label2.Location = new Point(12, 180);
             label2.Name = "label2";
             label2.Size = new Size(138, 20);
             label2.TabIndex = 2;
@@ -65,17 +65,17 @@
             dgvAttachments.AllowUserToResizeColumns = false;
             dgvAttachments.AllowUserToResizeRows = false;
             dgvAttachments.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvAttachments.Location = new Point(225, 178);
+            dgvAttachments.Location = new Point(156, 180);
             dgvAttachments.Name = "dgvAttachments";
             dgvAttachments.RowHeadersWidth = 51;
-            dgvAttachments.Size = new Size(1059, 155);
+            dgvAttachments.Size = new Size(1134, 258);
             dgvAttachments.TabIndex = 3;
             // 
             // label3
             // 
             label3.AutoSize = true;
             label3.Font = new Font("Segoe UI", 15F, FontStyle.Bold);
-            label3.Location = new Point(647, 9);
+            label3.Location = new Point(504, 9);
             label3.Name = "label3";
             label3.Size = new Size(221, 35);
             label3.TabIndex = 4;
@@ -84,7 +84,7 @@
             // label4
             // 
             label4.AutoSize = true;
-            label4.Location = new Point(81, 80);
+            label4.Location = new Point(12, 82);
             label4.Name = "label4";
             label4.Size = new Size(51, 20);
             label4.TabIndex = 5;
@@ -92,21 +92,21 @@
             // 
             // txtSignerEmail
             // 
-            txtSignerEmail.Location = new Point(225, 80);
+            txtSignerEmail.Location = new Point(156, 82);
             txtSignerEmail.Name = "txtSignerEmail";
             txtSignerEmail.Size = new Size(273, 27);
             txtSignerEmail.TabIndex = 6;
             // 
             // txtSignerName
             // 
-            txtSignerName.Location = new Point(544, 80);
+            txtSignerName.Location = new Point(475, 82);
             txtSignerName.Name = "txtSignerName";
             txtSignerName.Size = new Size(324, 27);
             txtSignerName.TabIndex = 7;
             // 
             // btnMoreSigners
             // 
-            btnMoreSigners.Location = new Point(906, 80);
+            btnMoreSigners.Location = new Point(837, 82);
             btnMoreSigners.Name = "btnMoreSigners";
             btnMoreSigners.Size = new Size(182, 29);
             btnMoreSigners.TabIndex = 8;
@@ -115,7 +115,7 @@
             // 
             // btnSendDocuments
             // 
-            btnSendDocuments.Location = new Point(479, 380);
+            btnSendDocuments.Location = new Point(396, 498);
             btnSendDocuments.Name = "btnSendDocuments";
             btnSendDocuments.Size = new Size(177, 29);
             btnSendDocuments.TabIndex = 9;
@@ -125,7 +125,7 @@
             // 
             // btnExit
             // 
-            btnExit.Location = new Point(691, 380);
+            btnExit.Location = new Point(608, 498);
             btnExit.Name = "btnExit";
             btnExit.Size = new Size(177, 29);
             btnExit.TabIndex = 10;
@@ -135,7 +135,7 @@
             // 
             // btnRemoveSigner
             // 
-            btnRemoveSigner.Location = new Point(1102, 80);
+            btnRemoveSigner.Location = new Point(1033, 82);
             btnRemoveSigner.Name = "btnRemoveSigner";
             btnRemoveSigner.Size = new Size(182, 29);
             btnRemoveSigner.TabIndex = 11;
@@ -145,7 +145,7 @@
             // lblCarbonCopy1
             // 
             lblCarbonCopy1.AutoSize = true;
-            lblCarbonCopy1.Location = new Point(81, 131);
+            lblCarbonCopy1.Location = new Point(12, 133);
             lblCarbonCopy1.Name = "lblCarbonCopy1";
             lblCarbonCopy1.Size = new Size(91, 20);
             lblCarbonCopy1.TabIndex = 12;
@@ -153,21 +153,21 @@
             // 
             // txtCarbonCopyEmail1
             // 
-            txtCarbonCopyEmail1.Location = new Point(225, 128);
+            txtCarbonCopyEmail1.Location = new Point(156, 130);
             txtCarbonCopyEmail1.Name = "txtCarbonCopyEmail1";
             txtCarbonCopyEmail1.Size = new Size(273, 27);
             txtCarbonCopyEmail1.TabIndex = 13;
             // 
             // txtCarbonCopyName1
             // 
-            txtCarbonCopyName1.Location = new Point(544, 128);
+            txtCarbonCopyName1.Location = new Point(475, 130);
             txtCarbonCopyName1.Name = "txtCarbonCopyName1";
             txtCarbonCopyName1.Size = new Size(324, 27);
             txtCarbonCopyName1.TabIndex = 14;
             // 
             // btnCarbonCopyRemove
             // 
-            btnCarbonCopyRemove.Location = new Point(1102, 127);
+            btnCarbonCopyRemove.Location = new Point(1033, 129);
             btnCarbonCopyRemove.Name = "btnCarbonCopyRemove";
             btnCarbonCopyRemove.Size = new Size(211, 29);
             btnCarbonCopyRemove.TabIndex = 16;
@@ -176,7 +176,7 @@
             // 
             // btnCarbonCopyAdd
             // 
-            btnCarbonCopyAdd.Location = new Point(906, 127);
+            btnCarbonCopyAdd.Location = new Point(837, 129);
             btnCarbonCopyAdd.Name = "btnCarbonCopyAdd";
             btnCarbonCopyAdd.Size = new Size(182, 29);
             btnCarbonCopyAdd.TabIndex = 15;
@@ -185,7 +185,7 @@
             // 
             // btnPreviousPage
             // 
-            btnPreviousPage.Location = new Point(225, 345);
+            btnPreviousPage.Location = new Point(142, 444);
             btnPreviousPage.Name = "btnPreviousPage";
             btnPreviousPage.Size = new Size(120, 29);
             btnPreviousPage.TabIndex = 17;
@@ -195,7 +195,7 @@
             // 
             // btnNextPage
             // 
-            btnNextPage.Location = new Point(558, 345);
+            btnNextPage.Location = new Point(475, 444);
             btnNextPage.Name = "btnNextPage";
             btnNextPage.Size = new Size(120, 29);
             btnNextPage.TabIndex = 18;
@@ -206,7 +206,7 @@
             // lblAttachmentPageInfo
             // 
             lblAttachmentPageInfo.AutoSize = true;
-            lblAttachmentPageInfo.Location = new Point(363, 350);
+            lblAttachmentPageInfo.Location = new Point(280, 449);
             lblAttachmentPageInfo.Name = "lblAttachmentPageInfo";
             lblAttachmentPageInfo.Size = new Size(158, 20);
             lblAttachmentPageInfo.TabIndex = 19;
@@ -218,7 +218,7 @@
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             AutoScroll = true;
-            ClientSize = new Size(1458, 600);
+            ClientSize = new Size(1305, 600);
             Controls.Add(lblAttachmentPageInfo);
             Controls.Add(btnNextPage);
             Controls.Add(btnPreviousPage);
