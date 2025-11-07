@@ -37,6 +37,7 @@ namespace Source1Solutions.DocuSign.WinForms
         private int _totalAttachmentRecords = 0;
 
         private Logger _logger;
+        private bool _isAttachmentDataLoaded = false;
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern Int32 SendMessage(IntPtr hWnd, int msg, int wParam, [MarshalAs(UnmanagedType.LPWStr)] string lParam);
@@ -106,15 +107,18 @@ namespace Source1Solutions.DocuSign.WinForms
 
             _logger.LogInformation("DocuSignForm initialized successfully");
 
-            // Clean old logs
-            try
+            // Clean old logs asynchronously to avoid blocking startup
+            Task.Run(() =>
             {
-                _logger.CleanOldLogs(AppSettings.GetLogRetentionDays());
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failed to clean old logs", ex);
-            }
+                try
+                {
+                    _logger.CleanOldLogs(AppSettings.GetLogRetentionDays());
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError("Failed to clean old logs", ex);
+                }
+            });
 
             // Initialize button positions based on initial layout
             UpdateAttachmentSectionPosition();
@@ -444,32 +448,43 @@ namespace Source1Solutions.DocuSign.WinForms
             SendMessage(textBox.Handle, EM_SETCUEBANNER, 0, placeholderText);
         }
 
-        protected void DocuSignForm_Load_1(object sender, EventArgs e)
+        protected async void DocuSignForm_Load_1(object sender, EventArgs e)
         {
             _logger.LogMethodEntry("DocuSignForm_Load_1");
-            LoadAttachment();
-            _logger.LogMethodExit("DocuSignForm_Load_1");
-        }
-
-        public void LoadAttachment()
-        {
-            _logger.LogMethodEntry("LoadAttachment");
 
             try
             {
-                string insertQuery = "INSERT INTO DocuSign_Testing_S1S (DocuSignName, RequestedDtm) VALUES (@DocuSignName, @RequestedDtm)";
+                // Show loading state
+                dgvAttachments.Enabled = false;
+                btnSendDocuments.Enabled = false;
+                this.Cursor = Cursors.WaitCursor;
 
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                using (SqlCommand command = new SqlCommand(insertQuery, connection))
-                {
-                    command.Parameters.AddWithValue("@DocuSignName", _argsString);
-                    command.Parameters.AddWithValue("@RequestedDtm", DateTime.Now);
+                // Load attachments asynchronously
+                await LoadAttachmentAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error loading form", ex);
+                MessageBox.Show($"Error loading attachments: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                // Restore UI state
+                dgvAttachments.Enabled = true;
+                btnSendDocuments.Enabled = true;
+                this.Cursor = Cursors.Default;
+            }
 
-                    connection.Open();
-                    int rowsAffected = command.ExecuteNonQuery();
-                    _logger.LogInformation("Inserted {0} row(s) into DocuSign_Testing_S1S", rowsAffected);
-                }
+            _logger.LogMethodExit("DocuSignForm_Load_1");
+        }
 
+        public async Task LoadAttachmentAsync()
+        {
+            _logger.LogMethodEntry("LoadAttachmentAsync");
+
+            try
+            {
                 // Get parameters from arguments
                 string requestFrom = dicArgs.ContainsKey("component") ? dicArgs["component"] : string.Empty;
                 string key1 = dicArgs.ContainsKey("Key_1_ID") ? dicArgs["Key_1_ID"] : string.Empty;
@@ -477,54 +492,70 @@ namespace Source1Solutions.DocuSign.WinForms
 
                 _logger.LogDebug("Loading attachments - RequestFrom: {0}, Key_1: {1}, Key_2: {2}", requestFrom, key1, key2);
 
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                using (SqlCommand command = new SqlCommand("dbo.brptGetAttachmentsDocuSign", connection))
+                // Load data asynchronously to avoid blocking the UI
+                await Task.Run(() =>
                 {
-                    command.CommandType = CommandType.StoredProcedure;
-
-                    // Add parameters
-                    command.Parameters.AddWithValue("@RequestFrom", requestFrom);
-                    command.Parameters.AddWithValue("@Key_1", key1);
-                    command.Parameters.AddWithValue("@Key_2", key2);
-
-                    connection.Open();
-                    _logger.LogDebug("Executing stored procedure: dbo.brptGetAttachmentsDocuSign");
-
-                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    using (SqlCommand command = new SqlCommand("dbo.brptGetAttachmentsDocuSign", connection))
                     {
-                        _fullAttachmentDataTable = new DataTable();
-                        adapter.Fill(_fullAttachmentDataTable);
+                        command.CommandType = CommandType.StoredProcedure;
 
-                        // Sort by AddDate descending (latest first)
-                        if (_fullAttachmentDataTable.Columns.Contains("AddDate"))
+                        // Add parameters
+                        command.Parameters.AddWithValue("@RequestFrom", requestFrom);
+                        command.Parameters.AddWithValue("@Key_1", key1);
+                        command.Parameters.AddWithValue("@Key_2", key2);
+
+                        connection.Open();
+                        _logger.LogDebug("Executing stored procedure: dbo.brptGetAttachmentsDocuSign");
+
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(command))
                         {
-                            DataView dv = _fullAttachmentDataTable.DefaultView;
-                            dv.Sort = "AddDate DESC";
-                            _fullAttachmentDataTable = dv.ToTable();
-                            _logger.LogDebug("Sorted attachments by AddDate descending");
+                            _fullAttachmentDataTable = new DataTable();
+                            adapter.Fill(_fullAttachmentDataTable);
+
+                            // Sort by AddDate descending (latest first)
+                            if (_fullAttachmentDataTable.Columns.Contains("AddDate"))
+                            {
+                                DataView dv = _fullAttachmentDataTable.DefaultView;
+                                dv.Sort = "AddDate DESC";
+                                _fullAttachmentDataTable = dv.ToTable();
+                                _logger.LogDebug("Sorted attachments by AddDate descending");
+                            }
+
+                            _totalAttachmentRecords = _fullAttachmentDataTable.Rows.Count;
+                            _totalAttachmentPages = (_totalAttachmentRecords + _attachmentPageSize - 1) / _attachmentPageSize; // Ceiling division
+                            _currentAttachmentPage = 1;
+
+                            _logger.LogInformation("Loaded {0} attachment(s), {1} pages", _totalAttachmentRecords, _totalAttachmentPages);
                         }
-
-                        _totalAttachmentRecords = _fullAttachmentDataTable.Rows.Count;
-                        _totalAttachmentPages = (_totalAttachmentRecords + _attachmentPageSize - 1) / _attachmentPageSize; // Ceiling division
-                        _currentAttachmentPage = 1;
-
-                        _logger.LogInformation("Loaded {0} attachment(s), {1} pages", _totalAttachmentRecords, _totalAttachmentPages);
-
-                        // Initialize DataGridView columns
-                        InitializeAttachmentDataGridView();
-
-                        // Display first page
-                        DisplayAttachmentPage();
                     }
-                }
+                });
 
-                _logger.LogMethodExit("LoadAttachment");
+                // Update UI on the UI thread
+                this.Invoke((MethodInvoker)delegate
+                {
+                    // Initialize DataGridView columns
+                    InitializeAttachmentDataGridView();
+
+                    // Display first page
+                    DisplayAttachmentPage();
+
+                    _isAttachmentDataLoaded = true;
+                });
+
+                _logger.LogMethodExit("LoadAttachmentAsync");
             }
             catch (Exception ex)
             {
                 _logger.LogError("Error loading attachments", ex);
-                MessageBox.Show($"Error loading attachments: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                throw;
             }
+        }
+
+        public void LoadAttachment()
+        {
+            // Synchronous wrapper for backward compatibility
+            LoadAttachmentAsync().GetAwaiter().GetResult();
         }
 
         private void InitializeAttachmentDataGridView()

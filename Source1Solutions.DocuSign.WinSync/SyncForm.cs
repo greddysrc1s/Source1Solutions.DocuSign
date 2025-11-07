@@ -17,6 +17,7 @@ namespace Source1Solutions.DocuSign.WinSync
         private int _totalPages = 0;
         SyncProcess _syncProcess = null;
         private int _totalRecords = 0;
+        private bool _isDataLoaded = false;
 
         public SyncForm(string[] args)
         {
@@ -56,28 +57,35 @@ namespace Source1Solutions.DocuSign.WinSync
 
             _logger.LogInformation("SyncForm initialized successfully");
 
-            // Clean old logs
-            try
+            // Clean old logs asynchronously to avoid blocking startup
+            Task.Run(() =>
             {
-                _logger.CleanOldLogs(AppSettings.GetLogRetentionDays());
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failed to clean old logs", ex);
-            }
+                try
+                {
+                    _logger.CleanOldLogs(AppSettings.GetLogRetentionDays());
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError("Failed to clean old logs", ex);
+                }
+            });
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private async void Form1_Load(object sender, EventArgs e)
         {
             _logger.LogMethodEntry("Form1_Load");
 
             try
             {
-                // Initialize DataGridView
+                // Show loading indicator
+                dgvDocuSignTracking.Enabled = false;
+                this.Cursor = Cursors.WaitCursor;
+
+                // Initialize DataGridView (fast, UI-only operation)
                 InitializeDataGridView();
 
-                // Load data
-                LoadDocuSignTrackingData();
+                // Load data asynchronously to prevent UI blocking
+                await LoadDocuSignTrackingDataAsync();
 
                 _logger.LogInformation("Form loaded successfully");
             }
@@ -86,6 +94,12 @@ namespace Source1Solutions.DocuSign.WinSync
                 _logger.LogError("Error loading form", ex);
                 MessageBox.Show($"Error loading form: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                // Restore UI state
+                dgvDocuSignTracking.Enabled = true;
+                this.Cursor = Cursors.Default;
             }
 
             _logger.LogMethodExit("Form1_Load");
@@ -235,9 +249,9 @@ namespace Source1Solutions.DocuSign.WinSync
             _logger.LogMethodExit("InitializeDataGridView");
         }
 
-        private void LoadDocuSignTrackingData()
+        private async Task LoadDocuSignTrackingDataAsync()
         {
-            _logger.LogMethodEntry("LoadDocuSignTrackingData");
+            _logger.LogMethodEntry("LoadDocuSignTrackingDataAsync");
 
             try
             {
@@ -248,51 +262,68 @@ namespace Source1Solutions.DocuSign.WinSync
                 _logger.LogDebug("Loading tracking data with filters - RequestFrom: {0}, Key_1: {1}, Key_2: {2}",
                     requestFrom, key1, key2);
 
-                // First, perform synchronization
-                _syncProcess.Sync();
+                // Perform synchronization asynchronously
+                await Task.Run(() => _syncProcess.Sync());
 
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                using (SqlCommand command = new SqlCommand("dbo.GetDocuSignTrackingDetails_S1S", connection))
+                // Load data from database asynchronously
+                await Task.Run(() =>
                 {
-                    command.CommandType = CommandType.StoredProcedure;
-
-                    // Add parameters
-                    command.Parameters.AddWithValue("@RequestFrom", string.IsNullOrEmpty(requestFrom) ? (object)DBNull.Value : requestFrom);
-                    command.Parameters.AddWithValue("@Key_1", string.IsNullOrEmpty(key1) ? (object)DBNull.Value : key1);
-                    command.Parameters.AddWithValue("@Key_2", string.IsNullOrEmpty(key2) ? (object)DBNull.Value : key2);
-
-                    connection.Open();
-                    _logger.LogDebug("Executing stored procedure: GetDocuSignTrackingDetails_S1S");
-
-                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    using (SqlCommand command = new SqlCommand("dbo.GetDocuSignTrackingDetails_S1S", connection))
                     {
-                        _fullDataTable = new DataTable();
-                        adapter.Fill(_fullDataTable);
+                        command.CommandType = CommandType.StoredProcedure;
 
-                        // Sort by RequestedDtm descending
-                        DataView dv = _fullDataTable.DefaultView;
-                        dv.Sort = "RequestedDtm DESC";
-                        _fullDataTable = dv.ToTable();
+                        // Add parameters
+                        command.Parameters.AddWithValue("@RequestFrom", string.IsNullOrEmpty(requestFrom) ? (object)DBNull.Value : requestFrom);
+                        command.Parameters.AddWithValue("@Key_1", string.IsNullOrEmpty(key1) ? (object)DBNull.Value : key1);
+                        command.Parameters.AddWithValue("@Key_2", string.IsNullOrEmpty(key2) ? (object)DBNull.Value : key2);
 
-                        _totalRecords = _fullDataTable.Rows.Count;
-                        _totalPages = (_totalRecords + _pageSize - 1) / _pageSize; // Ceiling division
-                        _currentPage = 1;
+                        connection.Open();
+                        _logger.LogDebug("Executing stored procedure: GetDocuSignTrackingDetails_S1S");
 
-                        _logger.LogInformation("Loaded {0} tracking record(s), {1} pages", _totalRecords, _totalPages);
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                        {
+                            _fullDataTable = new DataTable();
+                            adapter.Fill(_fullDataTable);
 
-                        // Display first page
-                        DisplayPage();
+                            // Sort by RequestedDtm descending
+                            DataView dv = _fullDataTable.DefaultView;
+                            dv.Sort = "RequestedDtm DESC";
+                            _fullDataTable = dv.ToTable();
+
+                            _totalRecords = _fullDataTable.Rows.Count;
+                            _totalPages = (_totalRecords + _pageSize - 1) / _pageSize; // Ceiling division
+                            _currentPage = 1;
+
+                            _logger.LogInformation("Loaded {0} tracking record(s), {1} pages", _totalRecords, _totalPages);
+                        }
                     }
-                }
+                });
+
+                // Update UI on the UI thread
+                this.Invoke((MethodInvoker)delegate
+                {
+                    DisplayPage();
+                    _isDataLoaded = true;
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError("Error loading DocuSign tracking data", ex);
-                MessageBox.Show($"Error loading tracking data: {ex.Message}", "Database Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                this.Invoke((MethodInvoker)delegate
+                {
+                    MessageBox.Show($"Error loading tracking data: {ex.Message}", "Database Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                });
             }
 
-            _logger.LogMethodExit("LoadDocuSignTrackingData");
+            _logger.LogMethodExit("LoadDocuSignTrackingDataAsync");
+        }
+
+        private void LoadDocuSignTrackingData()
+        {
+            // Synchronous wrapper for backward compatibility
+            LoadDocuSignTrackingDataAsync().GetAwaiter().GetResult();
         }
 
         private void DisplayPage()
@@ -390,14 +421,20 @@ namespace Source1Solutions.DocuSign.WinSync
             _logger.LogMethodExit("btnNext_Click");
         }
 
-        private void btnRefresh_Click(object sender, EventArgs e)
+        private async void btnRefresh_Click(object sender, EventArgs e)
         {
             _logger.LogMethodEntry("btnRefresh_Click");
 
             try
             {
-                // Reload the data
-                LoadDocuSignTrackingData();
+                // Disable button during refresh
+                btnRefresh.Enabled = false;
+                btnRefresh.Text = "Refreshing...";
+                this.Cursor = Cursors.WaitCursor;
+
+                // Reload the data asynchronously
+                await LoadDocuSignTrackingDataAsync();
+                
                 _logger.LogInformation("Data refreshed successfully");
                 MessageBox.Show("Data refreshed successfully!", "Success",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -407,6 +444,13 @@ namespace Source1Solutions.DocuSign.WinSync
                 _logger.LogError("Error refreshing data", ex);
                 MessageBox.Show($"Error refreshing data: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                // Re-enable button
+                btnRefresh.Enabled = true;
+                btnRefresh.Text = "Refresh";
+                this.Cursor = Cursors.Default;
             }
 
             _logger.LogMethodExit("btnRefresh_Click");

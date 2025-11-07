@@ -8,6 +8,7 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace Source1Solutions.DocuSign.WinSync
 {
@@ -87,7 +88,16 @@ namespace Source1Solutions.DocuSign.WinSync
                 int successCount = 0;
                 int errorCount = 0;
 
-                foreach (var envelopeID in lstEnvolpeIDs)
+                // Configure parallel options
+                var parallelOptions = new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = Environment.ProcessorCount // Use all available processors
+                };
+
+                _logger.LogInformation("Starting parallel processing with MaxDegreeOfParallelism: {0}", parallelOptions.MaxDegreeOfParallelism);
+
+                // Use Parallel.ForEach for concurrent processing
+                Parallel.ForEach(lstEnvolpeIDs, parallelOptions, envelopeID =>
                 {
                     try
                     {
@@ -123,12 +133,12 @@ namespace Source1Solutions.DocuSign.WinSync
 
                                     _logger.LogInformation("Successfully saved PDF to database for envelope ID: {0}", envelopeID);
 
-                                    successCount++;
+                                    Interlocked.Increment(ref successCount);
                                 }
                                 else
                                 {
                                     _logger.LogWarning("Downloaded PDF is null or empty for envelope ID: {0}", envelopeID);
-                                    errorCount++;
+                                    Interlocked.Increment(ref errorCount);
                                 }
                             }
                             else
@@ -143,15 +153,15 @@ namespace Source1Solutions.DocuSign.WinSync
                         else
                         {
                             _logger.LogWarning("Envelope object is null for envelope ID: {0}", envelopeID);
-                            errorCount++;
+                            Interlocked.Increment(ref errorCount);
                         }
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError($"Error processing envelope ID {envelopeID}", ex);
-                        errorCount++;
+                        Interlocked.Increment(ref errorCount);
                     }
-                }
+                });
 
                 _logger.LogInformation("Sync completed. Success: {0}, Errors: {1}", successCount, errorCount);
                 _logger.LogMethodExit("Sync", true);

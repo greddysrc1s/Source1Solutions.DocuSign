@@ -5,82 +5,89 @@ namespace Source1Solutions.DocuSign.WinSync
 {
     public static class AppSettings
     {
-        private static IConfiguration? _configuration;
-
-        public static IConfiguration Configuration
+        private static readonly Lazy<IConfiguration> _lazyConfiguration = new Lazy<IConfiguration>(() =>
         {
-            get
-            {
-                if (_configuration == null)
-                {
-                    var builder = new ConfigurationBuilder()
-                        .SetBasePath(Directory.GetCurrentDirectory())
-                        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-                    
-                    _configuration = builder.Build();
-                }
-                return _configuration;
-            }
-        }
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+            
+            return builder.Build();
+        });
+
+        public static IConfiguration Configuration => _lazyConfiguration.Value;
+
+        // Cache frequently accessed values
+        private static string? _connectionString;
+        private static string? _attachmentDBConnectionString;
+        private static string? _docuSignClientId;
+        private static string? _docuSignAuthServer;
+        private static string? _docuSignImpersonatedUserID;
+        private static string? _docuSignAccountID;
+        private static string? _docuSignPrivateKeyFile;
+        private static string? _docuSignApiBaseUrl;
+        private static string? _logFilePath;
+        private static string? _logFileName;
+        private static string? _logLevel;
+        private static int? _logRetentionDays;
 
         public static string GetConnectionString()
         {
-            return Configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
+            return _connectionString ??= Configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
         }
         
         public static string GetAttachmentDBConnectionString()
         {
-            return Configuration.GetConnectionString("AttachmentDBConnection") ?? string.Empty;
+            return _attachmentDBConnectionString ??= Configuration.GetConnectionString("AttachmentDBConnection") ?? string.Empty;
         }
 
         public static string GetDocuSignClientId()
         {
-            return Configuration["DocuSign:ClientId"] ?? string.Empty;
+            return _docuSignClientId ??= Configuration["DocuSign:ClientId"] ?? string.Empty;
         }
 
         public static string GetDocuSignAuthServer()
         {
-            return Configuration["DocuSign:AuthServer"] ?? string.Empty;
+            return _docuSignAuthServer ??= Configuration["DocuSign:AuthServer"] ?? string.Empty;
         }
 
         public static string GetDocuSignImpersonatedUserID()
         {
-            return Configuration["DocuSign:ImpersonatedUserID"] ?? string.Empty;
+            return _docuSignImpersonatedUserID ??= Configuration["DocuSign:ImpersonatedUserID"] ?? string.Empty;
         }
         
         public static string GetDocuSignAccountID()
         {
-            return Configuration["DocuSign:AccountID"] ?? string.Empty;
+            return _docuSignAccountID ??= Configuration["DocuSign:AccountID"] ?? string.Empty;
         }
 
         public static string GetDocuSignPrivateKeyFile()
         {
-            return Configuration["DocuSign:PrivateKeyFile"] ?? string.Empty;
+            return _docuSignPrivateKeyFile ??= Configuration["DocuSign:PrivateKeyFile"] ?? string.Empty;
         }
 
         public static string GetDocuSignApiBaseUrl()
         {
-            return Configuration["DocuSign:ApiBaseUrl"] ?? "https://demo.docusign.net/restapi";
+            return _docuSignApiBaseUrl ??= Configuration["DocuSign:ApiBaseUrl"] ?? "https://demo.docusign.net/restapi";
         }
 
         public static string GetLogFilePath()
         {
-            return Configuration["Logging:LogFilePath"] ?? "C:\\Logs\\DocuSign\\";
+            return _logFilePath ??= Configuration["Logging:LogFilePath"] ?? "C:\\Logs\\DocuSign\\";
         }
 
         public static string GetLogFileName()
         {
-            return Configuration["Logging:LogFileName"] ?? "DocuSign_{date}.log";
+            return _logFileName ??= Configuration["Logging:LogFileName"] ?? "DocuSign_{date}.log";
         }
 
         public static string GetLogLevel()
         {
-            return Configuration["Logging:LogLevel"] ?? "Information";
+            return _logLevel ??= Configuration["Logging:LogLevel"] ?? "Information";
         }
 
         public static int GetLogRetentionDays()
         {
-            return int.TryParse(Configuration["Logging:RetentionDays"], out int days) ? days : 30;
+            return _logRetentionDays ??= int.TryParse(Configuration["Logging:RetentionDays"], out int days) ? days : 30;
         }
     }
 }
