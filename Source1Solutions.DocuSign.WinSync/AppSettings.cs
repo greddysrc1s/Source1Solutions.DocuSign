@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using System.IO;
+using System.Reflection;
 
 namespace Source1Solutions.DocuSign.WinSync
 {
@@ -7,8 +8,11 @@ namespace Source1Solutions.DocuSign.WinSync
     {
         private static readonly Lazy<IConfiguration> _lazyConfiguration = new Lazy<IConfiguration>(() =>
         {
+            // Try multiple methods to get the executable directory (most reliable first)
+            string exeDirectory = GetExecutableDirectory();
+            
             var builder = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
+                .SetBasePath(exeDirectory)
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
             
             return builder.Build();
@@ -29,6 +33,51 @@ namespace Source1Solutions.DocuSign.WinSync
         private static string? _logFileName;
         private static string? _logLevel;
         private static int? _logRetentionDays;
+
+        /// <summary>
+        /// Gets the directory where the executable is located using multiple fallback methods
+        /// </summary>
+        private static string GetExecutableDirectory()
+        {
+            // Method 1: Try AppContext.BaseDirectory (most reliable for .NET Core/.NET 5+)
+            string? directory = AppContext.BaseDirectory;
+            if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+            {
+                return directory;
+            }
+
+            // Method 2: Try Assembly.GetExecutingAssembly().Location
+            string? assemblyLocation = Assembly.GetExecutingAssembly().Location;
+            if (!string.IsNullOrEmpty(assemblyLocation))
+            {
+                directory = Path.GetDirectoryName(assemblyLocation);
+                if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+                {
+                    return directory;
+                }
+            }
+
+            // Method 3: Try Process.GetCurrentProcess().MainModule.FileName (console app fallback)
+            try
+            {
+                var mainModule = System.Diagnostics.Process.GetCurrentProcess().MainModule;
+                if (mainModule?.FileName != null)
+                {
+                    directory = Path.GetDirectoryName(mainModule.FileName);
+                    if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+                    {
+                        return directory;
+                    }
+                }
+            }
+            catch
+            {
+                // Process.MainModule can throw in some scenarios, ignore and continue
+            }
+
+            // Method 4: Fallback to current directory
+            return Directory.GetCurrentDirectory();
+        }
 
         public static string GetConnectionString()
         {
@@ -88,6 +137,14 @@ namespace Source1Solutions.DocuSign.WinSync
         public static int GetLogRetentionDays()
         {
             return _logRetentionDays ??= int.TryParse(Configuration["Logging:RetentionDays"], out int days) ? days : 30;
+        }
+
+        /// <summary>
+        /// Gets the directory where the executable is located
+        /// </summary>
+        public static string GetApplicationDirectory()
+        {
+            return GetExecutableDirectory();
         }
     }
 }

@@ -22,10 +22,12 @@ namespace Source1Solutions.DocuSign.WinForms
         private List<TextBox> carbonCopyNameTextBoxes = new List<TextBox>();
         private int carbonCopyCount = 1; // Starting with 1 (the initial carbon copy)
 
-        // Constants for layout
-        private const int SIGNER_START_Y = 80;
-        private const int CONTROL_SPACING = 35;
-        private const int SECTION_SPACING = 20;
+        // Constants for layout - ALIGNED WITH DESIGNER.CS POSITIONS
+        private const int SIGNER_START_Y = 82;          // Matches Designer Y position for first signer
+        private const int SIGNER_EMAIL_X = 156;         // Matches Designer X position for email textboxes
+        private const int SIGNER_NAME_X = 475;          // Matches Designer X position for name textboxes
+        private const int CONTROL_SPACING = 35;         // Vertical spacing between rows (35px apart)
+        private const int SECTION_SPACING = 15;         // Spacing between sections
         private const int MAX_CARBON_COPIES = 4;
         private const int MAX_SIGNERS = 5;
 
@@ -142,18 +144,18 @@ namespace Source1Solutions.DocuSign.WinForms
 
             _logger.LogDebug("Adding signer #{0} at Y offset: {1}", signerCount, yOffset);
 
-            // Create new email textbox
+            // Create new email textbox - ALIGNED WITH DESIGNER POSITIONS
             TextBox newEmailTextBox = new TextBox();
             newEmailTextBox.Name = $"txtSignerEmail{signerCount}";
-            newEmailTextBox.Location = new Point(225, yOffset);
+            newEmailTextBox.Location = new Point(SIGNER_EMAIL_X, yOffset);
             newEmailTextBox.Size = new Size(273, 27);
             newEmailTextBox.TabIndex = 6 + (signerCount - 1) * 2;
             SetPlaceholder(newEmailTextBox, $"Signer {signerCount} Email");
 
-            // Create new name textbox
+            // Create new name textbox - ALIGNED WITH DESIGNER POSITIONS
             TextBox newNameTextBox = new TextBox();
             newNameTextBox.Name = $"txtSignerName{signerCount}";
-            newNameTextBox.Location = new Point(544, yOffset);
+            newNameTextBox.Location = new Point(SIGNER_NAME_X, yOffset);
             newNameTextBox.Size = new Size(324, 27);
             newNameTextBox.TabIndex = 7 + (signerCount - 1) * 2;
             SetPlaceholder(newNameTextBox, $"Signer {signerCount} Name");
@@ -269,18 +271,18 @@ namespace Source1Solutions.DocuSign.WinForms
 
             _logger.LogDebug("Adding carbon copy #{0} at Y offset: {1}", carbonCopyCount, yOffset);
 
-            // Create new email textbox
+            // Create new email textbox - ALIGNED WITH DESIGNER POSITIONS
             TextBox newEmailTextBox = new TextBox();
             newEmailTextBox.Name = $"txtCarbonCopyEmail{carbonCopyCount}";
-            newEmailTextBox.Location = new Point(225, yOffset);
+            newEmailTextBox.Location = new Point(SIGNER_EMAIL_X, yOffset);
             newEmailTextBox.Size = new Size(273, 27);
             newEmailTextBox.TabIndex = 13 + (carbonCopyCount - 1) * 2;
             SetPlaceholder(newEmailTextBox, $"Carbon Copy {carbonCopyCount} Email");
 
-            // Create new name textbox
+            // Create new name textbox - ALIGNED WITH DESIGNER POSITIONS
             TextBox newNameTextBox = new TextBox();
             newNameTextBox.Name = $"txtCarbonCopyName{carbonCopyCount}";
-            newNameTextBox.Location = new Point(544, yOffset);
+            newNameTextBox.Location = new Point(SIGNER_NAME_X, yOffset);
             newNameTextBox.Size = new Size(324, 27);
             newNameTextBox.TabIndex = 14 + (carbonCopyCount - 1) * 2;
             SetPlaceholder(newNameTextBox, $"Carbon Copy {carbonCopyCount} Name");
@@ -377,6 +379,7 @@ namespace Source1Solutions.DocuSign.WinForms
 
         /// <summary>
         /// Calculate where the carbon copy section should start based on number of signers
+        /// Designer.cs has first CC at Y=130, which is 82 + 1*35 + 13 spacing
         /// </summary>
         private int GetCarbonCopySectionStartY()
         {
@@ -392,8 +395,8 @@ namespace Source1Solutions.DocuSign.WinForms
 
             int carbonCopyStartY = GetCarbonCopySectionStartY();
 
-            // Move the carbon copy label
-            lblCarbonCopy1.Top = carbonCopyStartY - 3; // Slight offset for label alignment
+            // Move the carbon copy label (align with textbox top)
+            lblCarbonCopy1.Top = carbonCopyStartY + 3; // +3 pixels to center label with textbox
 
             // Move all carbon copy textboxes
             for (int i = 0; i < carbonCopyEmailTextBoxes.Count; i++)
@@ -404,7 +407,7 @@ namespace Source1Solutions.DocuSign.WinForms
             }
 
             // Move carbon copy buttons to align with first carbon copy row
-            btnCarbonCopyAdd.Top = carbonCopyStartY - 1;
+            btnCarbonCopyAdd.Top = carbonCopyStartY - 1;      // -1 pixel for visual alignment
             btnCarbonCopyRemove.Top = carbonCopyStartY - 1;
 
             // Update attachment section position
@@ -422,22 +425,25 @@ namespace Source1Solutions.DocuSign.WinForms
 
             int carbonCopyStartY = GetCarbonCopySectionStartY();
             int carbonCopyEndY = carbonCopyStartY + carbonCopyCount * CONTROL_SPACING;
-            int attachmentSectionY = carbonCopyEndY + SECTION_SPACING;
+            int attachmentSectionY = carbonCopyEndY + SECTION_SPACING + 10; // Extra spacing before attachments
 
-            // Move the attachments section
+            // Move the attachments label and grid
             label2.Top = attachmentSectionY;
             dgvAttachments.Top = attachmentSectionY;
 
             // Move the pagination controls to be below the attachments grid
-            int paginationY = dgvAttachments.Bottom + 10;
+            int paginationY = dgvAttachments.Bottom + 6; // 6 pixels spacing from grid
             btnPreviousPage.Top = paginationY;
             btnNextPage.Top = paginationY;
-            lblAttachmentPageInfo.Top = paginationY + 5; // Slight offset for label alignment
+            lblAttachmentPageInfo.Top = paginationY + 5; // Center label vertically with buttons
 
             // Move the main buttons to be below the pagination controls
             int buttonY = paginationY + 40;
             btnSendDocuments.Top = buttonY;
             btnExit.Top = buttonY;
+
+            // Update form's AutoScroll minimum size to accommodate all controls
+            this.AutoScrollMinSize = new Size(1305, buttonY + 60);
 
             _logger.LogDebug("Attachment section positioned at Y: {0}, Pagination at Y: {1}, Buttons at Y: {2}",
                 attachmentSectionY, paginationY, buttonY);
