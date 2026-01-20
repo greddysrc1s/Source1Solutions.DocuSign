@@ -148,7 +148,8 @@ namespace DocuSign.Requests
                     docuSignRequest.CarbonCopies,
                     docuSignRequest.SelectedAttachments, 
                     "sent",
-                    _logger);
+                    _logger,
+                    _userInputs.AttachmentDBConnection);
                 
                 _logger.LogInformation("Envelope sent successfully with ID: {0}", envelopeId);
                 _logger.LogMethodExit("SendEnvelope", envelopeId);

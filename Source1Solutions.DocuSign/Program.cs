@@ -10,7 +10,7 @@ class Program
     {
         string argsString = string.Join(" ", args);
 
-        string connectionString = "Server=WAP-sql.viewpointdata.cloud,4316;Database=Viewpoint;User Id=ReportBuilder;Password=SourceOne@20230816;";
+        string connectionString = "Server=WAP-sql.viewpointdata.cloud,4316;Database=Viewpoint;User Id=ReportBuilder;Password=BrightFuture30$$;";
 
         string attachmentId = "1481";
         string query = "SELECT AttachmentData, AttachmentFileType FROM [VPAttachments].[dbo].[bHQAF] WHERE AttachmentID = @AttachmentID";

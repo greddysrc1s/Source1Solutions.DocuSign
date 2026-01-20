@@ -11,8 +11,8 @@ namespace DocuSign.Requests
 {
     public static class SigningViaEmail
     {
-        private static string AttachmentDBConnection = "Server=WAP-sql.viewpointdata.cloud,4316;Database=VPAttachments;User Id=ReportBuilder;Password=SourceOne@20230816;";
-
+        //private static string AttachmentDBConnection = "Server=WAP-sql.viewpointdata.cloud,4316;Database=VPAttachments;User Id=ReportBuilder;Password=BrightFuture30$$;";
+        private static string _attachmentDBConnection = string.Empty;
         public static string SendEnvelopeViaEmail(string accessToken,
                                                     string basePath,
                                                     string accountId,
@@ -20,19 +20,20 @@ namespace DocuSign.Requests
                                                     List<CarbonCopyDto> carbonCopies,
                                                     List<AttachmentDto> selectedAttachments,
                                                     string envStatus,
-                                                    Logger logger)
+                                                    Logger logger,
+                                                    string attachmentDBConnection)
         {
             Logger _logger = logger;
+            _attachmentDBConnection = attachmentDBConnection;
 
             _logger.LogMethodEntry("SendEnvelopeViaEmail", basePath, accountId, envStatus);
-            _logger.LogInformation("Sending envelope with {0} signer(s), {1} carbon copy recipient(s), and {2} attachment(s)", 
+            _logger.LogInformation("Sending envelope with {0} signer(s), {1} carbon copy recipient(s), and {2} attachment(s)",
                 signers.Count, carbonCopies.Count, selectedAttachments.Count);
 
             try
             {
                 EnvelopeDefinition env = MakeEnvelope(signers, carbonCopies, selectedAttachments, envStatus, _logger);
                 _logger.LogDebug("Envelope definition created successfully");
-
                 var docuSignClient = new DocuSignClient(basePath);
                 docuSignClient.Configuration.DefaultHeader.Add("Authorization", "Bearer " + accessToken);
                 _logger.LogDebug("DocuSign client configured with authorization");
@@ -63,7 +64,7 @@ namespace DocuSign.Requests
             Logger _logger = logger;
 
             _logger.LogMethodEntry("MakeEnvelope", envStatus);
-            _logger.LogDebug("Creating envelope with {0} signers, {1} carbon copy recipients, and {2} attachments", 
+            _logger.LogDebug("Creating envelope with {0} signers, {1} carbon copy recipients, and {2} attachments",
                 signers.Count, carbonCopies.Count, selectedAttachments.Count);
 
             try
@@ -214,7 +215,7 @@ namespace DocuSign.Requests
             try
             {
                 _logger.LogDebug("Connecting to AttachmentDB");
-                using (SqlConnection connection = new SqlConnection(AttachmentDBConnection))
+                using (SqlConnection connection = new SqlConnection(_attachmentDBConnection))
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@AttachmentID", attachmentId);
@@ -265,7 +266,7 @@ namespace DocuSign.Requests
 
             try
             {
-                using (SqlConnection connection = new SqlConnection(AttachmentDBConnection))
+                using (SqlConnection connection = new SqlConnection(_attachmentDBConnection))
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@AttachmentID", attachmentId);
