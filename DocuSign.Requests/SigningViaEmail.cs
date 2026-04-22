@@ -21,7 +21,8 @@ namespace DocuSign.Requests
                                                     List<AttachmentDto> selectedAttachments,
                                                     string envStatus,
                                                     Logger logger,
-                                                    string attachmentDBConnection)
+                                                    string attachmentDBConnection,
+                                                    UserInputs userInputs)
         {
             Logger _logger = logger;
             _attachmentDBConnection = attachmentDBConnection;
@@ -32,7 +33,7 @@ namespace DocuSign.Requests
 
             try
             {
-                EnvelopeDefinition env = MakeEnvelope(signers, carbonCopies, selectedAttachments, envStatus, _logger);
+                EnvelopeDefinition env = MakeEnvelope(signers, carbonCopies, selectedAttachments, envStatus, _logger, userInputs);
                 _logger.LogDebug("Envelope definition created successfully");
                 var docuSignClient = new DocuSignClient(basePath);
                 docuSignClient.Configuration.DefaultHeader.Add("Authorization", "Bearer " + accessToken);
@@ -59,7 +60,8 @@ namespace DocuSign.Requests
                                                     List<CarbonCopyDto> carbonCopies,
                                                     List<AttachmentDto> selectedAttachments,
                                                     string envStatus,
-                                                    Logger logger)
+                                                    Logger logger,
+                                                    UserInputs userInputs)
         {
             Logger _logger = logger;
 
@@ -101,23 +103,23 @@ namespace DocuSign.Requests
                     _logger.LogDebug("Added document: {0} (ID: {1})", doc.OrigFileName, doc.AttachmentID);
                 }
 
-                // Create signature tabs for each signer with dynamic positioning
+                // Create signature tabs for each signer with anchor-based positioning
                 List<Signer> dsSigners = new List<Signer>();
 
-                const int SIGNATURE_START_X = 300;  // Starting X position
-                const int SIGNATURE_START_Y = 600;  // Starting Y position for first signer
-                const int SIGNATURE_SPACING = 75;   // Vertical spacing between signers
-
-                _logger.LogDebug("Creating {0} signer(s) with signature spacing of {1} pixels", signers.Count, SIGNATURE_SPACING);
+                _logger.LogDebug("Creating {0} signer(s) with anchor-based positioning", signers.Count);
+                _logger.LogDebug("Signature anchor settings - Primary: '{0}', XOffset: {1}, YOffset: {2}",
+                    userInputs.SignatureAnchorPrimaryText, userInputs.SignatureAnchorXOffset, userInputs.SignatureAnchorYOffset);
 
                 for (int i = 0; i < signers.Count; i++)
                 {
-                    // Calculate X position for this signer (75 pixels apart)
-                    int xPosition = SIGNATURE_START_X - (i * SIGNATURE_SPACING);
-                    int yPosition = SIGNATURE_START_Y;
-
-                    _logger.LogDebug("Signer {0} ({1}) will have signature at position X:{2}, Y:{3}",
-                        i + 1, signers[i].Name, xPosition, yPosition);
+                    // Define anchor string for signature placement using configuration
+                    // First signer uses primary anchor text, additional signers use secondary pattern
+                    string anchorString = i == 0 
+                        ? userInputs.SignatureAnchorPrimaryText 
+                        : string.Format(userInputs.SignatureAnchorSecondaryPattern, i + 1);
+                    
+                    _logger.LogDebug("Signer {0} ({1}) will use anchor string: '{2}'",
+                        i + 1, signers[i].Name, anchorString);
 
                     // Create signature tabs for this specific signer on all documents
                     List<SignHere> signerSignHereTabs = new List<SignHere>();
@@ -127,9 +129,13 @@ namespace DocuSign.Requests
                         var signHere = new SignHere
                         {
                             DocumentId = docIdx.ToString(),
-                            PageNumber = "1",
-                            XPosition = xPosition.ToString(),
-                            YPosition = yPosition.ToString()
+                            // Use anchor-based positioning from configuration
+                            AnchorString = anchorString,
+                            AnchorUnits = userInputs.SignatureAnchorUnits,
+                            AnchorXOffset = userInputs.SignatureAnchorXOffset,
+                            AnchorYOffset = userInputs.SignatureAnchorYOffset,
+                            AnchorIgnoreIfNotPresent = userInputs.SignatureAnchorIgnoreIfNotPresent,
+                            AnchorCaseSensitive = userInputs.SignatureAnchorCaseSensitive
                         };
 
                         signerSignHereTabs.Add(signHere);
@@ -150,7 +156,7 @@ namespace DocuSign.Requests
                     };
 
                     dsSigners.Add(dsSigner);
-                    _logger.LogDebug("Added signer: {0} ({1}) with signature position Y:{2}", signers[i].Name, signers[i].Email, xPosition);
+                    _logger.LogDebug("Added signer: {0} ({1}) with anchor string: '{2}'", signers[i].Name, signers[i].Email, anchorString);
                 }
 
                 // Add carbon copy recipients

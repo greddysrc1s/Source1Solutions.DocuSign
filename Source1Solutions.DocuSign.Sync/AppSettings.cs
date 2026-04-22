@@ -82,5 +82,41 @@ namespace Source1Solutions.DocuSign.Sync
         {
             return int.TryParse(Configuration["Logging:RetentionDays"], out int days) ? days : 30;
         }
+
+        // Signature Anchor Settings
+        public static string GetSignatureAnchorPrimaryText()
+        {
+            return Configuration["DocuSign:SignatureAnchors:PrimaryAnchorText"] ?? "Vendor Signature:";
+        }
+
+        public static string GetSignatureAnchorSecondaryPattern()
+        {
+            return Configuration["DocuSign:SignatureAnchors:SecondaryAnchorPattern"] ?? "Signer {0} Signature:";
+        }
+
+        public static string GetSignatureAnchorXOffset()
+        {
+            return Configuration["DocuSign:SignatureAnchors:AnchorXOffset"] ?? "100";
+        }
+
+        public static string GetSignatureAnchorYOffset()
+        {
+            return Configuration["DocuSign:SignatureAnchors:AnchorYOffset"] ?? "0";
+        }
+
+        public static string GetSignatureAnchorUnits()
+        {
+            return Configuration["DocuSign:SignatureAnchors:AnchorUnits"] ?? "pixels";
+        }
+
+        public static string GetSignatureAnchorIgnoreIfNotPresent()
+        {
+            return Configuration["DocuSign:SignatureAnchors:AnchorIgnoreIfNotPresent"] ?? "true";
+        }
+
+        public static string GetSignatureAnchorCaseSensitive()
+        {
+            return Configuration["DocuSign:SignatureAnchors:AnchorCaseSensitive"] ?? "false";
+        }
     }
 }

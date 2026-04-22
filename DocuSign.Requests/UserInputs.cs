@@ -25,5 +25,19 @@ namespace DocuSign.Requests
 
         public string DocuSignApiBaseUrl { get; set; }
 
+        // Signature Anchor Settings
+        public string SignatureAnchorPrimaryText { get; set; } = "Vendor Signature:";
+
+        public string SignatureAnchorSecondaryPattern { get; set; } = "Signer {0} Signature:";
+
+        public string SignatureAnchorXOffset { get; set; } = "100";
+
+        public string SignatureAnchorYOffset { get; set; } = "0";
+
+        public string SignatureAnchorUnits { get; set; } = "pixels";
+
+        public string SignatureAnchorIgnoreIfNotPresent { get; set; } = "true";
+
+        public string SignatureAnchorCaseSensitive { get; set; } = "false";
     }
 }

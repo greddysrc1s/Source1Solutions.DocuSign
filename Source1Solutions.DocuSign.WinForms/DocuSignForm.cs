@@ -902,7 +902,14 @@ namespace Source1Solutions.DocuSign.WinForms
                     DocuSignPrivateKeyFile = AppSettings.GetDocuSignPrivateKeyFile(),
                     DocuSignAccountID = AppSettings.GetDocuSignAccountID(),
                     AttachmentDBConnection = AppSettings.GetAttachmentDBConnectionString(),
-                    DocuSignApiBaseUrl = AppSettings.GetDocuSignApiBaseUrl()
+                    DocuSignApiBaseUrl = AppSettings.GetDocuSignApiBaseUrl(),
+                    SignatureAnchorPrimaryText = AppSettings.GetSignatureAnchorPrimaryText(),
+                    SignatureAnchorSecondaryPattern = AppSettings.GetSignatureAnchorSecondaryPattern(),
+                    SignatureAnchorXOffset = AppSettings.GetSignatureAnchorXOffset(),
+                    SignatureAnchorYOffset = AppSettings.GetSignatureAnchorYOffset(),
+                    SignatureAnchorUnits = AppSettings.GetSignatureAnchorUnits(),
+                    SignatureAnchorIgnoreIfNotPresent = AppSettings.GetSignatureAnchorIgnoreIfNotPresent(),
+                    SignatureAnchorCaseSensitive = AppSettings.GetSignatureAnchorCaseSensitive()
                 };
 
                 _logger.LogInformation("Creating DocuSignRequestor with logger");

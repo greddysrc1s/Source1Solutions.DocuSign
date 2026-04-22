@@ -33,6 +33,15 @@ namespace Source1Solutions.DocuSign.WinForms
         private static string? _logFileName;
         private static string? _logLevel;
         private static int? _logRetentionDays;
+        
+        // Signature Anchor Settings Cache
+        private static string? _signatureAnchorPrimaryText;
+        private static string? _signatureAnchorSecondaryPattern;
+        private static string? _signatureAnchorXOffset;
+        private static string? _signatureAnchorYOffset;
+        private static string? _signatureAnchorUnits;
+        private static string? _signatureAnchorIgnoreIfNotPresent;
+        private static string? _signatureAnchorCaseSensitive;
 
         /// <summary>
         /// Gets the directory where the executable is located using multiple fallback methods
@@ -126,6 +135,42 @@ namespace Source1Solutions.DocuSign.WinForms
         public static int GetLogRetentionDays()
         {
             return _logRetentionDays ??= int.TryParse(Configuration["Logging:RetentionDays"], out int days) ? days : 30;
+        }
+
+        // Signature Anchor Settings
+        public static string GetSignatureAnchorPrimaryText()
+        {
+            return _signatureAnchorPrimaryText ??= Configuration["DocuSign:SignatureAnchors:PrimaryAnchorText"] ?? "Vendor Signature:";
+        }
+
+        public static string GetSignatureAnchorSecondaryPattern()
+        {
+            return _signatureAnchorSecondaryPattern ??= Configuration["DocuSign:SignatureAnchors:SecondaryAnchorPattern"] ?? "Signer {0} Signature:";
+        }
+
+        public static string GetSignatureAnchorXOffset()
+        {
+            return _signatureAnchorXOffset ??= Configuration["DocuSign:SignatureAnchors:AnchorXOffset"] ?? "100";
+        }
+
+        public static string GetSignatureAnchorYOffset()
+        {
+            return _signatureAnchorYOffset ??= Configuration["DocuSign:SignatureAnchors:AnchorYOffset"] ?? "0";
+        }
+
+        public static string GetSignatureAnchorUnits()
+        {
+            return _signatureAnchorUnits ??= Configuration["DocuSign:SignatureAnchors:AnchorUnits"] ?? "pixels";
+        }
+
+        public static string GetSignatureAnchorIgnoreIfNotPresent()
+        {
+            return _signatureAnchorIgnoreIfNotPresent ??= Configuration["DocuSign:SignatureAnchors:AnchorIgnoreIfNotPresent"] ?? "true";
+        }
+
+        public static string GetSignatureAnchorCaseSensitive()
+        {
+            return _signatureAnchorCaseSensitive ??= Configuration["DocuSign:SignatureAnchors:AnchorCaseSensitive"] ?? "false";
         }
 
         /// <summary>

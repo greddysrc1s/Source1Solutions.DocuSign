@@ -149,7 +149,8 @@ namespace DocuSign.Requests
                     docuSignRequest.SelectedAttachments, 
                     "sent",
                     _logger,
-                    _userInputs.AttachmentDBConnection);
+                    _userInputs.AttachmentDBConnection,
+                    _userInputs);
                 
                 _logger.LogInformation("Envelope sent successfully with ID: {0}", envelopeId);
                 _logger.LogMethodExit("SendEnvelope", envelopeId);
