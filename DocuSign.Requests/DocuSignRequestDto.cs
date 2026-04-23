@@ -19,6 +19,8 @@ namespace DocuSign.Requests
         public string Key_1 { get; set; } = string.Empty;
 
         public string Key_2 { get; set; } = string.Empty;
+
+        public string ProjectID { get; set; } = string.Empty;
     }
 
     public class SignerDto
@@ -26,6 +28,7 @@ namespace DocuSign.Requests
         public string Name { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public int SignerOrder { get; set; }
+        public string SignerType { get; set; } = "Primary"; // Primary, Secondary, Third
     }
 
     public class CarbonCopyDto

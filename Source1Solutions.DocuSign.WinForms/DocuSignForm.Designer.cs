@@ -34,6 +34,7 @@
             label4 = new Label();
             txtSignerEmail = new TextBox();
             txtSignerName = new TextBox();
+            cmbSignerType = new ComboBox();
             btnMoreSigners = new Button();
             btnSendDocuments = new Button();
             btnExit = new Button();
@@ -101,8 +102,18 @@
             // 
             txtSignerName.Location = new Point(475, 82);
             txtSignerName.Name = "txtSignerName";
-            txtSignerName.Size = new Size(324, 27);
+            txtSignerName.Size = new Size(224, 27);
             txtSignerName.TabIndex = 7;
+            // 
+            // cmbSignerType
+            // 
+            cmbSignerType.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbSignerType.FormattingEnabled = true;
+            cmbSignerType.Items.AddRange(new object[] { "Primary", "Secondary", "Tertiary" });
+            cmbSignerType.Location = new Point(709, 82);
+            cmbSignerType.Name = "cmbSignerType";
+            cmbSignerType.Size = new Size(120, 28);
+            cmbSignerType.TabIndex = 20;
             // 
             // btnMoreSigners
             // 
@@ -219,6 +230,7 @@
             AutoScaleMode = AutoScaleMode.Font;
             AutoScroll = true;
             ClientSize = new Size(1305, 600);
+            Controls.Add(cmbSignerType);
             Controls.Add(lblAttachmentPageInfo);
             Controls.Add(btnNextPage);
             Controls.Add(btnPreviousPage);
@@ -252,6 +264,7 @@
         private Label label4;
         private TextBox txtSignerEmail;
         private TextBox txtSignerName;
+        private ComboBox cmbSignerType;
         private Button btnMoreSigners;
         private Button btnSendDocuments;
         private Button btnExit;

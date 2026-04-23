@@ -15,6 +15,7 @@ namespace Source1Solutions.DocuSign.WinForms
         // List to keep track of dynamically created signer controls
         private List<TextBox> signerEmailTextBoxes = new List<TextBox>();
         private List<TextBox> signerNameTextBoxes = new List<TextBox>();
+        private List<ComboBox> signerTypeComboBoxes = new List<ComboBox>();
         private int signerCount = 1; // Starting with 1 (the initial signer)
 
         // List to keep track of dynamically created carbon copy controls
@@ -22,10 +23,18 @@ namespace Source1Solutions.DocuSign.WinForms
         private List<TextBox> carbonCopyNameTextBoxes = new List<TextBox>();
         private int carbonCopyCount = 1; // Starting with 1 (the initial carbon copy)
 
+        // Existing signers from project
+        private ComboBox cmbExistingSigners;
+        private Button btnAddExistingSigner;
+        private Label lblExistingSigners;
+        private DataTable _existingSignersDataTable;
+
         // Constants for layout - ALIGNED WITH DESIGNER.CS POSITIONS
         private const int SIGNER_START_Y = 82;          // Matches Designer Y position for first signer
         private const int SIGNER_EMAIL_X = 156;         // Matches Designer X position for email textboxes
         private const int SIGNER_NAME_X = 475;          // Matches Designer X position for name textboxes
+        private const int SIGNER_TYPE_X = 709;          // Position for signer type combobox
+        private const int EXISTING_SIGNERS_Y = 50;      // Position for existing signers section
         private const int CONTROL_SPACING = 35;         // Vertical spacing between rows (35px apart)
         private const int SECTION_SPACING = 15;         // Spacing between sections
         private const int MAX_CARBON_COPIES = 4;
@@ -74,12 +83,26 @@ namespace Source1Solutions.DocuSign.WinForms
                 }
             }
 
+            // Log parsed parameters for debugging
+            _logger.LogInformation("Parsed parameters - component: {0}, Key_1_ID: {1}, Key_2_ID: {2}, projectID: {3}",
+                dicArgs.ContainsKey("component") ? dicArgs["component"] : "(not set)",
+                dicArgs.ContainsKey("Key_1_ID") ? dicArgs["Key_1_ID"] : "(not set)",
+                dicArgs.ContainsKey("Key_2_ID") ? dicArgs["Key_2_ID"] : "(not set)",
+                dicArgs.ContainsKey("projectID") ? dicArgs["projectID"] : "(not set)");
+
+            // Initialize existing signers dropdown if ProjectID is provided
+            InitializeExistingSignersSection();
+
             SetPlaceholder(txtSignerEmail, "Signer Email");
             SetPlaceholder(txtSignerName, "Signer Name");
 
             // Add the initial textboxes to our lists
             signerEmailTextBoxes.Add(txtSignerEmail);
             signerNameTextBoxes.Add(txtSignerName);
+            signerTypeComboBoxes.Add(cmbSignerType);
+            
+            // Set default value for first signer type
+            cmbSignerType.SelectedIndex = 0; // Default to "Primary"
 
             // Wire up the button click events for signers
             btnMoreSigners.Click += BtnMoreSigners_Click;
@@ -149,24 +172,36 @@ namespace Source1Solutions.DocuSign.WinForms
             newEmailTextBox.Name = $"txtSignerEmail{signerCount}";
             newEmailTextBox.Location = new Point(SIGNER_EMAIL_X, yOffset);
             newEmailTextBox.Size = new Size(273, 27);
-            newEmailTextBox.TabIndex = 6 + (signerCount - 1) * 2;
+            newEmailTextBox.TabIndex = 6 + (signerCount - 1) * 3;
             SetPlaceholder(newEmailTextBox, $"Signer {signerCount} Email");
 
             // Create new name textbox - ALIGNED WITH DESIGNER POSITIONS
             TextBox newNameTextBox = new TextBox();
             newNameTextBox.Name = $"txtSignerName{signerCount}";
             newNameTextBox.Location = new Point(SIGNER_NAME_X, yOffset);
-            newNameTextBox.Size = new Size(324, 27);
-            newNameTextBox.TabIndex = 7 + (signerCount - 1) * 2;
+            newNameTextBox.Size = new Size(224, 27);
+            newNameTextBox.TabIndex = 7 + (signerCount - 1) * 3;
             SetPlaceholder(newNameTextBox, $"Signer {signerCount} Name");
+
+            // Create new signer type combobox
+            ComboBox newTypeComboBox = new ComboBox();
+            newTypeComboBox.Name = $"cmbSignerType{signerCount}";
+            newTypeComboBox.Location = new Point(SIGNER_TYPE_X, yOffset);
+            newTypeComboBox.Size = new Size(120, 28);
+            newTypeComboBox.TabIndex = 8 + (signerCount - 1) * 3;
+            newTypeComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+            newTypeComboBox.Items.AddRange(new object[] { "Primary", "Secondary", "Tertiary" });
+            newTypeComboBox.SelectedIndex = 0; // Default to "Primary"
 
             // Add to form
             this.Controls.Add(newEmailTextBox);
             this.Controls.Add(newNameTextBox);
+            this.Controls.Add(newTypeComboBox);
 
             // Add to our tracking lists
             signerEmailTextBoxes.Add(newEmailTextBox);
             signerNameTextBoxes.Add(newNameTextBox);
+            signerTypeComboBoxes.Add(newTypeComboBox);
 
             // Move carbon copy section down
             UpdateCarbonCopySectionPosition();
@@ -200,24 +235,28 @@ namespace Source1Solutions.DocuSign.WinForms
 
             try
             {
-                // Get the last email and name textboxes
+                // Get the last email, name textboxes, and type combobox
                 TextBox lastEmailTextBox = signerEmailTextBoxes[signerEmailTextBoxes.Count - 1];
                 TextBox lastNameTextBox = signerNameTextBoxes[signerNameTextBoxes.Count - 1];
+                ComboBox lastTypeComboBox = signerTypeComboBoxes[signerTypeComboBoxes.Count - 1];
 
-                _logger.LogDebug("Removing signer #{0} ({1}, {2})",
-                    signerCount, lastEmailTextBox.Name, lastNameTextBox.Name);
+                _logger.LogDebug("Removing signer #{0} ({1}, {2}, {3})",
+                    signerCount, lastEmailTextBox.Name, lastNameTextBox.Name, lastTypeComboBox.Name);
 
                 // Remove from form
                 this.Controls.Remove(lastEmailTextBox);
                 this.Controls.Remove(lastNameTextBox);
+                this.Controls.Remove(lastTypeComboBox);
 
                 // Dispose the controls
                 lastEmailTextBox.Dispose();
                 lastNameTextBox.Dispose();
+                lastTypeComboBox.Dispose();
 
                 // Remove from tracking lists
                 signerEmailTextBoxes.RemoveAt(signerEmailTextBoxes.Count - 1);
                 signerNameTextBoxes.RemoveAt(signerNameTextBoxes.Count - 1);
+                signerTypeComboBoxes.RemoveAt(signerTypeComboBoxes.Count - 1);
 
                 // Decrement signer count
                 signerCount--;
@@ -567,7 +606,6 @@ namespace Source1Solutions.DocuSign.WinForms
         private void InitializeAttachmentDataGridView()
         {
             _logger.LogMethodEntry("InitializeAttachmentDataGridView");
-
             try
             {
                 // Clear existing data
@@ -961,6 +999,7 @@ namespace Source1Solutions.DocuSign.WinForms
             // Prepare comma-delimited strings for signers
             string signerEmails = string.Join(",", docuSignRequest.Signers.Select(s => s.Email));
             string signerNames = string.Join(",", docuSignRequest.Signers.Select(s => s.Name));
+            string signerTypes = string.Join(",", docuSignRequest.Signers.Select(s => s.SignerType));
 
             // Prepare comma-delimited strings for carbon copies
             string carbonCopyEmails = string.Join(",", docuSignRequest.CarbonCopies.Select(cc => cc.Email));
@@ -978,6 +1017,7 @@ namespace Source1Solutions.DocuSign.WinForms
             _logger.LogDebug("Requestor: {0}", requestor);
             _logger.LogDebug("Signer Emails: {0}", signerEmails);
             _logger.LogDebug("Signer Names: {0}", signerNames);
+            _logger.LogDebug("Signer Types: {0}", signerTypes);
             _logger.LogDebug("Carbon Copy Emails: {0}", carbonCopyEmails);
             _logger.LogDebug("Carbon Copy Names: {0}", carbonCopyNames);
             _logger.LogDebug("Attachment IDs: {0}", attachmentIds);
@@ -1041,6 +1081,7 @@ namespace Source1Solutions.DocuSign.WinForms
             docuSignRequest.RequestFrom = dicArgs.ContainsKey("component") ? dicArgs["component"] : Environment.UserName;
             docuSignRequest.Key_1 = dicArgs.ContainsKey("Key_1_ID") ? dicArgs["Key_1_ID"] : Environment.UserName;
             docuSignRequest.Key_2 = dicArgs.ContainsKey("Key_2_ID") ? dicArgs["Key_2_ID"] : Environment.UserName;
+            docuSignRequest.ProjectID = dicArgs.ContainsKey("projectID") ? dicArgs["projectID"] : string.Empty;
 
             // Add signers
             for (int i = 0; i < signerEmailTextBoxes.Count; i++)
@@ -1049,7 +1090,8 @@ namespace Source1Solutions.DocuSign.WinForms
                 {
                     Name = signerNameTextBoxes[i].Text.Trim(),
                     Email = signerEmailTextBoxes[i].Text.Trim(),
-                    SignerOrder = i + 1
+                    SignerOrder = i + 1,
+                    SignerType = signerTypeComboBoxes[i].SelectedItem?.ToString() ?? "Primary"
                 };
                 docuSignRequest.Signers.Add(signer);
             }
@@ -1110,6 +1152,252 @@ namespace Source1Solutions.DocuSign.WinForms
         private void btnExit_Click(object sender, EventArgs e)
         {
             this.Close();
+        }
+
+        /// <summary>
+        /// Initialize the existing signers section if ProjectID is provided
+        /// </summary>
+        private void InitializeExistingSignersSection()
+        {
+            _logger.LogMethodEntry("InitializeExistingSignersSection");
+
+            try
+            {
+                // Check if ProjectID is provided
+                string projectID = dicArgs.ContainsKey("projectID") ? dicArgs["projectID"]?.Trim() : string.Empty;
+
+                if (string.IsNullOrEmpty(projectID))
+                {
+                    _logger.LogDebug("ProjectID not provided, skipping existing signers section");
+                    return;
+                }
+
+                _logger.LogInformation("ProjectID provided: {0}, initializing existing signers section", projectID);
+
+                // Create label for existing signers
+                lblExistingSigners = new Label();
+                lblExistingSigners.Name = "lblExistingSigners";
+                lblExistingSigners.Location = new Point(12, EXISTING_SIGNERS_Y + 3);
+                lblExistingSigners.Size = new Size(200, 20);
+                lblExistingSigners.Text = "Existing Signers:";
+                lblExistingSigners.AutoSize = true;
+
+                // Create existing signers dropdown
+                cmbExistingSigners = new ComboBox();
+                cmbExistingSigners.Name = "cmbExistingSigners";
+                cmbExistingSigners.Location = new Point(156, EXISTING_SIGNERS_Y);
+                cmbExistingSigners.Size = new Size(500, 28);
+                cmbExistingSigners.DropDownStyle = ComboBoxStyle.DropDownList;
+                cmbExistingSigners.DisplayMember = "DisplayText";
+                cmbExistingSigners.ValueMember = "Email";
+
+                // Create button to add existing signer
+                btnAddExistingSigner = new Button();
+                btnAddExistingSigner.Name = "btnAddExistingSigner";
+                btnAddExistingSigner.Location = new Point(670, EXISTING_SIGNERS_Y - 1);
+                btnAddExistingSigner.Size = new Size(160, 29);
+                btnAddExistingSigner.Text = "Add Existing Signer";
+                btnAddExistingSigner.UseVisualStyleBackColor = true;
+                btnAddExistingSigner.Click += BtnAddExistingSigner_Click;
+
+                // Add controls to form
+                this.Controls.Add(lblExistingSigners);
+                this.Controls.Add(cmbExistingSigners);
+                this.Controls.Add(btnAddExistingSigner);
+
+                // Load existing signers from database
+                LoadExistingSigners(projectID);
+
+                _logger.LogInformation("Existing signers section initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error initializing existing signers section", ex);
+                // Don't throw - this is optional functionality
+            }
+
+            _logger.LogMethodExit("InitializeExistingSignersSection");
+        }
+
+        /// <summary>
+        /// Load existing signers from database for the given ProjectID
+        /// </summary>
+        private void LoadExistingSigners(string projectID)
+        {
+            _logger.LogMethodEntry("LoadExistingSigners", projectID);
+
+            try
+            {
+                string query = @"
+                    SELECT DISTINCT 
+                        PMSL.Project,
+                        PMPM.FirstName,
+                        PMPM.LastName,
+                        PMPM.EMail
+                    FROM PMSL PMSL
+                    JOIN PMSS PMSS ON PMSL.Project = PMSS.Project AND PMSL.PMCo = PMSS.PMCo
+                    JOIN PMPM PMPM ON PMSS.SendToFirm = PMPM.FirmNumber AND PMSS.SendToContact = PMPM.ContactCode
+                    WHERE PMSL.PMCo = 101
+                        AND PMPM.ExcludeYN = 'N'
+                        AND PMPM.EMail IS NOT NULL
+                        AND LTRIM(RTRIM(PMSL.Project)) = @ProjectID
+                    ORDER BY PMPM.LastName, PMPM.FirstName";
+
+                _logger.LogDebug("Executing query to load existing signers for ProjectID: {0}", projectID);
+
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@ProjectID", projectID);
+
+                    connection.Open();
+
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                    {
+                        _existingSignersDataTable = new DataTable();
+                        adapter.Fill(_existingSignersDataTable);
+
+                        _logger.LogInformation("Loaded {0} existing signer(s) for ProjectID: {1}", 
+                            _existingSignersDataTable.Rows.Count, projectID);
+
+                        // Create display items for dropdown
+                        var signerItems = new List<object>();
+                        signerItems.Add(new { DisplayText = "-- Select an existing signer --", Email = "", FirstName = "", LastName = "" });
+
+                        foreach (DataRow row in _existingSignersDataTable.Rows)
+                        {
+                            string firstName = row["FirstName"]?.ToString() ?? "";
+                            string lastName = row["LastName"]?.ToString() ?? "";
+                            string email = row["EMail"]?.ToString() ?? "";
+                            string displayText = $"{lastName}, {firstName} ({email})";
+
+                            signerItems.Add(new { DisplayText = displayText, Email = email, FirstName = firstName, LastName = lastName });
+
+                            _logger.LogDebug("Added existing signer: {0}", displayText);
+                        }
+
+                        cmbExistingSigners.DataSource = signerItems;
+                        cmbExistingSigners.SelectedIndex = 0;
+
+                // Disable button if no signers found
+                if (_existingSignersDataTable.Rows.Count == 0)
+                {
+                    btnAddExistingSigner.Enabled = false;
+                    _logger.LogWarning("No existing signers found for ProjectID: {0}", projectID);
+                }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error loading existing signers", ex);
+                MessageBox.Show($"Error loading existing signers: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                // Disable the controls on error
+                if (cmbExistingSigners != null) cmbExistingSigners.Enabled = false;
+                if (btnAddExistingSigner != null) btnAddExistingSigner.Enabled = false;
+            }
+
+            _logger.LogMethodExit("LoadExistingSigners");
+        }
+
+        /// <summary>
+        /// Handle adding an existing signer from the dropdown
+        /// </summary>
+        private void BtnAddExistingSigner_Click(object sender, EventArgs e)
+        {
+            _logger.LogMethodEntry("BtnAddExistingSigner_Click");
+
+            try
+            {
+                // Check if a signer is selected
+                if (cmbExistingSigners.SelectedIndex <= 0)
+                {
+                    MessageBox.Show("Please select an existing signer from the dropdown.", "No Selection",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    _logger.LogWarning("No existing signer selected");
+                    return;
+                }
+
+                // Get selected signer info
+                dynamic selectedItem = cmbExistingSigners.SelectedItem;
+                string email = selectedItem.Email;
+                string firstName = selectedItem.FirstName;
+                string lastName = selectedItem.LastName;
+                string fullName = $"{firstName} {lastName}";
+
+                _logger.LogDebug("Adding existing signer: {0} ({1})", fullName, email);
+
+                // Check if we've reached the maximum number of signers
+                if (signerCount >= MAX_SIGNERS)
+                {
+                    _logger.LogWarning("Cannot add more signers - maximum limit of {0} reached", MAX_SIGNERS);
+                    MessageBox.Show($"Maximum of {MAX_SIGNERS} signers allowed.",
+                        "Limit Reached", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Check if this email is already added
+                bool emailExists = signerEmailTextBoxes.Any(tb => 
+                    tb.Text.Trim().Equals(email, StringComparison.OrdinalIgnoreCase));
+
+                if (emailExists)
+                {
+                    _logger.LogWarning("Signer with email {0} is already added", email);
+                    MessageBox.Show($"This signer ({email}) has already been added to the list.",
+                        "Duplicate Signer", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Add to first empty signer slot or create new one
+                bool added = false;
+
+                // Try to fill an empty slot first
+                for (int i = 0; i < signerEmailTextBoxes.Count; i++)
+                {
+                    if (string.IsNullOrWhiteSpace(signerEmailTextBoxes[i].Text))
+                    {
+                        signerEmailTextBoxes[i].Text = email;
+                        signerNameTextBoxes[i].Text = fullName;
+                        signerTypeComboBoxes[i].SelectedIndex = 0; // Primary
+                        added = true;
+                        _logger.LogInformation("Added existing signer to slot {0}", i + 1);
+                        break;
+                    }
+                }
+
+                // If all slots are filled, add a new one
+                if (!added)
+                {
+                    // Simulate clicking "Add Signers" button
+                    BtnMoreSigners_Click(sender, e);
+
+                    // Fill the newly created signer fields
+                    int lastIndex = signerEmailTextBoxes.Count - 1;
+                    signerEmailTextBoxes[lastIndex].Text = email;
+                    signerNameTextBoxes[lastIndex].Text = fullName;
+                    signerTypeComboBoxes[lastIndex].SelectedIndex = 0; // Primary
+
+                    _logger.LogInformation("Added existing signer as new slot {0}", signerEmailTextBoxes.Count);
+                }
+
+                // Reset dropdown to default selection
+                cmbExistingSigners.SelectedIndex = 0;
+
+                MessageBox.Show($"Added existing signer: {fullName}\n{email}", "Signer Added",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                _logger.LogInformation("Successfully added existing signer: {0} ({1})", fullName, email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error adding existing signer", ex);
+                MessageBox.Show($"Error adding existing signer: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            _logger.LogMethodExit("BtnAddExistingSigner_Click");
         }
     }
 }
